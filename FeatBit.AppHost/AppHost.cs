@@ -1,3 +1,6 @@
+using FeatBit.AppHost.Utils;
+using Aspire.Hosting.Azure;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Check configuration to determine resource mode
@@ -34,12 +37,24 @@ else
 }
 
 // FeatBit Data Analytics Server (Python)
+// Configured for internal access only - no external endpoint exposed in local development
+// Only accessible by other services through service discovery
 var dataAnalytics = builder.AddContainer("featbit-da-server", "featbit/featbit-data-analytics-server", "latest")
-    .WithHttpEndpoint(port: 8200, targetPort: 80, name: "http")
+    .WithHttpEndpoint(targetPort: 80, name: "http", isProxied: false) // Internal only - no external port
     .WithEnvironment("POSTGRES_DATABASE", "featbit")
     .WithEnvironment("POSTGRES_PORT", "5432")
     .WithEnvironment("CHECK_DB_LIVNESS", "false")
-    .WithEnvironment("DB_PROVIDER", "Postgres");
+    .WithEnvironment("DB_PROVIDER", "Postgres")
+    .PublishAsAzureContainerApp((infrastructure, containerApp) =>
+    {
+        // Set minimum replicas to 3 for high availability
+        containerApp.Template.Scale.MinReplicas = 3;
+        // Optionally set maximum replicas
+        containerApp.Template.Scale.MaxReplicas = 10;
+        
+        // Configure internal ingress - only accessible within the Container Apps environment
+        containerApp.Configuration.Ingress.External = false;
+    });
 
 // Configure PostgreSQL environment variables - parse connection string to extract components
 // Use the connection string expression which works for both existing and new resources
@@ -51,7 +66,7 @@ if (useExistingPostgres)
 {
     // For existing connection string, extract components from the provided connection string
     var connectionString = builder.Configuration["ConnectionStrings:Postgres"]!;
-    var (host, user, password, port) = ParsePostgresConnectionStringWithPort(connectionString);
+    var (host, user, password, port) = PostgresConnectionStringParser.ParseConnectionStringWithPort(connectionString);
 
     dataAnalytics = dataAnalytics
         .WithEnvironment("POSTGRES_HOST", host)
@@ -73,7 +88,7 @@ else
     dataAnalytics = dataAnalytics.WithEnvironment(context =>
     {
         var connectionString = postgres.Resource.ConnectionStringExpression.ValueExpression;
-        var (host, user, password, port) = ParsePostgresConnectionStringWithPort(connectionString);
+        var (host, user, password, port) = PostgresConnectionStringParser.ParseConnectionStringWithPort(connectionString);
 
         context.EnvironmentVariables["POSTGRES_HOST"] = host;
         context.EnvironmentVariables["POSTGRES_PORT"] = port;
@@ -99,7 +114,14 @@ var webApi = builder.AddContainer("featbit-api", "featbit/featbit-api-server", "
     .WithEnvironment("DbProvider", "Postgres")
     .WithEnvironment("OLAP__ServiceHost", dataAnalytics.GetEndpoint("http"))
     .WithEnvironment("ASPNETCORE_URLS", "http://+:5000")
-    .WithEnvironment("AllowedHosts", "*");
+    .WithEnvironment("AllowedHosts", "*")
+    .PublishAsAzureContainerApp((infrastructure, containerApp) =>
+    {
+        // Set minimum replicas to 3 for high availability
+        containerApp.Template.Scale.MinReplicas = 3;
+        // Optionally set maximum replicas
+        containerApp.Template.Scale.MaxReplicas = 10;
+    });
 
 // FeatBit Evaluation Server (ASP.NET Core)  
 var evaluationServer = builder.AddContainer("featbit-evaluation-server", "featbit/featbit-evaluation-server", "latest")
@@ -111,65 +133,34 @@ var evaluationServer = builder.AddContainer("featbit-evaluation-server", "featbi
     .WithEnvironment("CacheProvider", "Redis")
     .WithEnvironment("DbProvider", "Postgres")
     .WithEnvironment("ASPNETCORE_URLS", "http://+:5100")
-    .WithEnvironment("AllowedHosts", "*");
+    .WithEnvironment("AllowedHosts", "*")
+    .PublishAsAzureContainerApp((infrastructure, containerApp) =>
+    {
+        // Set minimum replicas to 3 for high availability
+        containerApp.Template.Scale.MinReplicas = 3;
+        // Optionally set maximum replicas
+        containerApp.Template.Scale.MaxReplicas = 10;
+    });
 
 // FeatBit Angular UI
 var angularUI = builder.AddContainer("featbit-ui", "featbit/featbit-ui", "latest")
     .WithHttpEndpoint(port: 8081, targetPort: 80, name: "http")
-    .WithEnvironment("DEMO_URL", "https://featbit-samples.vercel.app");
+    .WithEnvironment("DEMO_URL", "https://featbit-samples.vercel.app")
+    .PublishAsAzureContainerApp((infrastructure, containerApp) =>
+    {
+        // Set minimum replicas to 3 for high availability
+        containerApp.Template.Scale.MinReplicas = 3;
+        // Optionally set maximum replicas
+        containerApp.Template.Scale.MaxReplicas = 10;
+    });
 
 // Configure API and Evaluation URLs for browser access (external URLs)
 // For development, manually specify the localhost URLs that will be accessible from browser
 // In production, these should be replaced with actual external URLs
 angularUI = angularUI
-        // .WithEnvironment("API_URL", "http://localhost:5000")     
-        // .WithEnvironment("EVALUATION_URL", "http://localhost:5100"); 
-    .WithEnvironment("API_URL", webApi.GetEndpoint("http"))     
-    .WithEnvironment("EVALUATION_URL", evaluationServer.GetEndpoint("http")); 
+         .WithEnvironment("API_URL", "http://localhost:5000")
+         .WithEnvironment("EVALUATION_URL", "http://localhost:5100"); 
+    //.WithEnvironment("API_URL", webApi.GetEndpoint("http"))     
+    //.WithEnvironment("EVALUATION_URL", evaluationServer.GetEndpoint("http")); 
 
 builder.Build().Run();
-
-
-
-// Helper method to parse PostgreSQL connection string with port
-static (string host, string? user, string? password, string port) ParsePostgresConnectionStringWithPort(string connectionString)
-{
-    var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries);
-    string host = "localhost";
-    string? user = null;
-    string? password = null;
-    string port = "5432";
-
-    foreach (var part in parts)
-    {
-        var keyValue = part.Split('=', 2);
-        if (keyValue.Length == 2)
-        {
-            var key = keyValue[0].Trim().ToLowerInvariant();
-            var value = keyValue[1].Trim();
-
-            switch (key)
-            {
-                case "host":
-                case "server":
-                    host = value;
-                    break;
-                case "port":
-                    port = value;
-                    break;
-                case "username":
-                case "user":
-                case "uid":
-                case "user id":
-                    user = value;
-                    break;
-                case "password":
-                case "pwd":
-                    password = value;
-                    break;
-            }
-        }
-    }
-
-    return (host, user, password, port);
-}
