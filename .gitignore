@@ -52,3 +52,10 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Development settings
+appsettings.Development.json
+
+# Visual Studio
+.vs/
+

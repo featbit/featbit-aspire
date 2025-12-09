@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "aspire-dashboard": {
+      "type": "http",
+      "url": "http://localhost:23010/mcp",
+      "headers": {
+        "x-mcp-api-key": "b413d5e48cba008b0c898e4def9a1ba2"
+      }
+    }
+  }
+}
