@@ -116,35 +116,152 @@ Services automatically receive connection strings for:
 - PostgreSQL via `postgres.Resource.ConnectionStringExpression`
 - Redis via `redis.Resource.ConnectionStringExpression`
 
-## 🚀 Deployment
+## 🚀 Deployment to Azure
 
-### Azure Deployment
+### Prerequisites for Azure Deployment
 
-The Aspire AppHost automatically provisions Azure resources:
+- **Azure subscription** with appropriate permissions
+- **Azure Developer CLI (azd)** installed
+- **Existing PostgreSQL and Redis** instances (connection strings configured in `appsettings.json`)
+
+### Initial Deployment
 
 1. **Install Azure Developer CLI**
    ```bash
+   # Windows (using winget)
    winget install microsoft.azd
+   
+   # Or download from https://aka.ms/azd-install
    ```
 
-2. **Initialize and deploy**
+2. **Login to Azure**
    ```bash
-   azd init
+   azd auth login
+   ```
+
+3. **Initialize the project**
+   ```bash
+   azd init --from-code
+   ```
+   
+   When prompted:
+   - Select `.NET (Aspire)` as the detected service
+   - Enter a unique environment name (e.g., `featbit-aspire-env`)
+   - Confirm to continue
+
+4. **Deploy to Azure**
+   ```bash
    azd up
    ```
+   
+   During deployment, you'll be prompted to:
+   - Select your Azure subscription
+   - Choose a region (e.g., `West US 2`)
+   - Enter PostgreSQL connection string
+   - Enter Redis connection string
+   
+   The deployment will:
+   - Create a resource group (e.g., `rg-featbit-aspire-env`)
+   - Create an Azure Container Apps Environment
+   - Create an Azure Container Registry
+   - Create Application Insights for monitoring
+   - Deploy all 4 container services with 3 replicas each for high availability
+   - Configure HTTPS endpoints automatically
 
-This will create:
-- Azure PostgreSQL Flexible Server
-- Azure Cache for Redis  
-- Azure Container Apps for all services
+5. **Access your deployed application**
+   
+   After successful deployment, you'll see:
+   ```
+   - FeatBit UI: https://featbit-ui.<environment>.azurecontainerapps.io/
+   - FeatBit API: https://featbit-api.<environment>.azurecontainerapps.io/
+   - Evaluation Server: https://featbit-evaluation-server.<environment>.azurecontainerapps.io/
+   - Aspire Dashboard: https://aspire-dashboard.ext.<environment>.azurecontainerapps.io
+   ```
+
+### Updating Your Deployment
+
+After making code changes, update your Azure deployment:
+
+1. **Quick update (code changes only)**
+   ```bash
+   azd deploy
+   ```
+   This redeploys your services without reprovisioning infrastructure.
+
+2. **Full update (code + infrastructure changes)**
+   ```bash
+   azd up
+   ```
+   Use this when you've modified `AppHost.cs` configuration.
+
+3. **Update specific service**
+   ```bash
+   azd deploy <service-name>
+   # Example: azd deploy featbit-api
+   ```
+
+### Managing Your Azure Resources
+
+**View deployment status:**
+```bash
+azd show
+```
+
+**View environment details:**
+```bash
+azd env get-values
+```
+
+**Monitor logs:**
+```bash
+azd monitor
+```
+
+**Delete all Azure resources:**
+```bash
+azd down --force --purge
+```
+
+Or using Azure CLI:
+```bash
+az group delete --name rg-featbit-aspire-env --yes --no-wait
+```
+
+### Architecture in Azure
+
+The deployment creates:
+
+- **Azure Container Apps Environment** - Managed Kubernetes environment
+- **Azure Container Registry** - Private container image storage
+- **Application Insights** - Monitoring and telemetry
+- **Log Analytics Workspaces** - Centralized logging
+- **4 Container Apps** (each with 3 replicas for high availability):
+  - `featbit-api` - Web API Server (external HTTPS)
+  - `featbit-evaluation-server` - Evaluation Server (external HTTPS)
+  - `featbit-ui` - Angular UI (external HTTPS)
+  - `featbit-da-server` - Data Analytics (internal only)
 
 ### Production Configuration
 
-For production, the AppHost will:
-- Use Azure PostgreSQL instead of local containers
-- Use Azure Redis instead of local containers
-- Deploy services to Azure Container Apps
-- Configure proper networking and security
+The application automatically detects publish mode and:
+- Uses explicit ports (5000, 5100, 8081) for **local development**
+- Uses automatic port assignment (port 80) for **Azure deployment**
+- Configures HTTPS endpoints for external services in Azure
+- Sets up internal-only access for the Data Analytics service
+- Configures environment variables with connection strings
+- Enables Application Insights for monitoring
+- Scales services with 3-10 replicas for high availability
+
+### Cost Optimization
+
+To reduce costs in development:
+- Modify replica counts in `AppHost.cs`:
+  ```csharp
+  containerApp.Template.Scale.MinReplicas = 1;
+  containerApp.Template.Scale.MaxReplicas = 3;
+  ```
+- Delete resources when not in use: `azd down`
+- Use Azure Cost Management to monitor spending
 
 ## 🔍 Monitoring
 

@@ -65,8 +65,17 @@ if (applicationInsights != null)
 }
 
 // FeatBit Web API Server (ASP.NET Core)
-var webApi = builder.AddContainer("featbit-api", "featbit/featbit-api-server", "latest")
-    .WithHttpEndpoint(port: 5000, targetPort: 5000, name: "http")
+var webApiBuilder = builder.AddContainer("featbit-api", "featbit/featbit-api-server", "latest");
+if (builder.ExecutionContext.IsPublishMode)
+{
+    webApiBuilder = webApiBuilder.WithHttpEndpoint(targetPort: 5000, name: "http")
+                                 .WithHttpsEndpoint(targetPort: 5000, name: "https");
+}
+else
+{
+    webApiBuilder = webApiBuilder.WithHttpEndpoint(port: 5000, targetPort: 5000, name: "http");
+}
+var webApi = webApiBuilder
     .WithEnvironment("Postgres__ConnectionString", postgres.Resource.ConnectionStringExpression)
     .WithEnvironment("Redis__ConnectionString", redis.Resource.ConnectionStringExpression)
     .WithEnvironment("SSOEnabled", "true")
@@ -92,8 +101,17 @@ if (applicationInsights != null)
 }
 
 // FeatBit Evaluation Server (ASP.NET Core)  
-var evaluationServer = builder.AddContainer("featbit-evaluation-server", "featbit/featbit-evaluation-server", "latest")
-    .WithHttpEndpoint(port: 5100, targetPort: 5100, name: "http")
+var evaluationServerBuilder = builder.AddContainer("featbit-evaluation-server", "featbit/featbit-evaluation-server", "latest");
+if (builder.ExecutionContext.IsPublishMode)
+{
+    evaluationServerBuilder = evaluationServerBuilder.WithHttpEndpoint(targetPort: 5100, name: "http")
+                                                     .WithHttpsEndpoint(targetPort: 5100, name: "https");
+}
+else
+{
+    evaluationServerBuilder = evaluationServerBuilder.WithHttpEndpoint(port: 5100, targetPort: 5100, name: "http");
+}
+var evaluationServer = evaluationServerBuilder
     .WithEnvironment("Postgres__ConnectionString", postgres.Resource.ConnectionStringExpression)
     .WithEnvironment("Redis__ConnectionString", redis.Resource.ConnectionStringExpression)
     .WithEnvironment("SSOEnabled", "true")
@@ -117,8 +135,16 @@ if (applicationInsights != null)
 }
 
 // FeatBit Angular UI
-var angularUI = builder.AddContainer("featbit-ui", "featbit/featbit-ui", "latest")
-    .WithHttpEndpoint(port: 8081, targetPort: 80, name: "http")
+var angularUIBuilder = builder.AddContainer("featbit-ui", "featbit/featbit-ui", "latest");
+if (builder.ExecutionContext.IsPublishMode)
+{
+    angularUIBuilder = angularUIBuilder.WithHttpEndpoint(targetPort: 80, name: "http");
+}
+else
+{
+    angularUIBuilder = angularUIBuilder.WithHttpEndpoint(port: 8081, targetPort: 80, name: "http");
+}
+var angularUI = angularUIBuilder
     .WithEnvironment("DEMO_URL", "https://featbit-samples.vercel.app")
     .PublishAsAzureContainerApp((infrastructure, containerApp) =>
     {
@@ -132,8 +158,8 @@ var angularUI = builder.AddContainer("featbit-ui", "featbit/featbit-ui", "latest
 if (builder.ExecutionContext.IsPublishMode)
 {
     angularUI = angularUI
-        .WithEnvironment("API_URL", webApi.GetEndpoint("http"))
-        .WithEnvironment("EVALUATION_URL", evaluationServer.GetEndpoint("http"))
+        .WithEnvironment("API_URL", webApi.GetEndpoint("https"))
+        .WithEnvironment("EVALUATION_URL", evaluationServer.GetEndpoint("https"))
         .WithExternalHttpEndpoints();
 }
 // For development, manually specify the localhost URLs that will be accessible from browser
