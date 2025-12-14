@@ -7,7 +7,7 @@ if (builder.ExecutionContext.IsPublishMode)
 {
     // Add Azure Container Apps environment when publishing to Azure
     // This enables deployment to Azure Container Apps using 'azd up' command
-    var containerAppsEnv = builder.AddAzureContainerAppEnvironment("featbit-aspire");
+    builder.AddAzureContainerAppEnvironment("featbit-aspire");
 }
 
 // Database Provider Configuration - choose between "Postgres" and "MongoDb"

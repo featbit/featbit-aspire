@@ -28,6 +28,7 @@ public static class AppHostSrvEvaluationServer
             .WithEnvironment("ASPNETCORE_URLS", $"http://+:{Port.ToString()}")
             .WithEnvironment("AllowedHosts", "*")
             .WithExternalHttpEndpoints()
+            .WithHttpHealthCheck("/health/liveness")
             .PublishAsAzureContainerApp((_, app) =>
             {
                 app.Template.Scale.MinReplicas = 3;

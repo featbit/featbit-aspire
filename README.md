@@ -1,122 +1,91 @@
-# FeatBit Aspire Project
+# FeatBit Aspire - Deploy FeatBit to Azure with .NET Aspire
 
-This is a comprehensive .NET Aspire application that demonstrates a microservices architecture with Azure cloud resources and Docker containers.
+Deploy [FeatBit](https://github.com/featbit/featbit) - an open-source feature flag management platform - to Azure using .NET Aspire.
 
-## Architecture
+## 🏗️ Architecture
 
-The project includes the following components:
+**Services:**
+- **FeatBit Web API** - Main API server for feature flag management
+- **FeatBit Evaluation Server** - High-performance evaluation engine
+- **FeatBit UI** - Angular-based web interface
+- **FeatBit Data Analytics** - Analytics and reporting service
 
-### 🏗️ Infrastructure
-- **Azure PostgreSQL Flexible Server** - Primary database
-- **Azure Cache for Redis** - Caching and session storage
+**Infrastructure:**
+- **Database** - PostgreSQL or MongoDB (configurable)
+- **Cache** - Redis
+- **Monitoring** - Azure Application Insights (when deployed to Azure)
 
-### 🚀 Services
-- **Feature Flag Service** (.NET 8) - REST API for managing feature flags
-- **User Service** (.NET 8) - REST API for user management
-- **Angular UI** (Docker) - Frontend application using `featbit/featbit-ui:latest`
-- **Python Analytics Service** (Docker) - FastAPI service for analytics and data processing
+## ⚙️ Prerequisites
 
-## Prerequisites
+**Local Development:**
+- .NET 10 SDK or later
+- Docker Desktop (running)
+- PostgreSQL or MongoDB instance
+- Redis instance
 
-- **.NET 10 SDK** or later
-- **Docker Desktop** (running)
-- **Azure subscription** (for production deployment)
-- **Visual Studio 2022** or **VS Code** with C# Dev Kit
+**Azure Deployment:**
+- Azure subscription
+- Azure Developer CLI (azd)
 
-## 🚀 Getting Started
+## 🚀 Local Development
 
-### Local Development
+### 1. Clone and Configure
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd featbit-aspire
-   ```
+```bash
+git clone https://github.com/featbit/featbit-aspire.git
+cd featbit-aspire
+```
 
-2. **Restore dependencies**
-   ```bash
-   dotnet restore
-   ```
+### 2. Configure Connection Strings
 
-3. **Run the Aspire AppHost**
-   ```bash
-   dotnet run --project FeatBit.AppHost
-   ```
+Edit `FeatBit.AppHost/appsettings.Development.json`:
 
-4. **Access the services:**
-   - **Aspire Dashboard**: https://localhost:17106
-   - **FeatBit Angular UI**: http://localhost:8081
-   - **FeatBit Web API**: http://localhost:5000
-   - **FeatBit Evaluation Server**: http://localhost:5100
-   - **FeatBit Data Analytics**: http://localhost:8200
+**For PostgreSQL:**
+```json
+{
+  "DbProvider": "Postgres",
+  "ConnectionStrings": {
+    "Postgres": "Host=localhost;Database=featbit;Username=postgres;Password=yourpassword;Port=5432",
+    "Redis": "localhost:6379"
+  }
+}
+```
 
-### 📊 Service Endpoints
+**For MongoDB:**
+```json
+{
+  "DbProvider": "MongoDb",
+  "ConnectionStrings": {
+    "MongoDb": "mongodb://localhost:27017/featbit",
+    "Redis": "localhost:6379"
+  },
+  "MongoDb": {
+    "Database": "featbit",
+    "Host": "mongodb"
+  }
+}
+```
 
-#### FeatBit Web API Server (Port 5000)
-- Main API server for feature flag management
-- Handles user authentication and authorization
-- Manages feature flag configurations and targeting rules
-- Provides administrative interfaces
+### 3. Run the Application
 
-#### FeatBit Evaluation Server (Port 5100)
-- High-performance feature flag evaluation engine
-- Handles real-time feature flag evaluations
-- Optimized for low-latency responses
-- Used by client SDKs for flag evaluations
+```bash
+dotnet run --project FeatBit.AppHost
+```
 
-#### FeatBit Angular UI (Port 8081)
-- Complete web-based management interface
-- Feature flag dashboard and configuration
-- User management and analytics
-- Access via browser at http://localhost:8081
+### 4. Access Services
 
-#### FeatBit Data Analytics Server (Port 8200)
-- Analytics and reporting engine
-- Data processing and insights
-- Performance metrics and usage statistics
+- **Aspire Dashboard**: https://localhost:17106
+- **FeatBit UI**: http://localhost:8081
+- **FeatBit Web API**: http://localhost:5000
+- **FeatBit Evaluation Server**: http://localhost:5100
+- **FeatBit Data Analytics**: http://localhost:8200
 
-## 🐳 Docker Services
+**Default Login:**
+- Email: `test@featbit.com`
+- Password: `123456`
 
-### FeatBit Web API Server
-- **Image**: `featbitdocker/featbit-api-server:5.1.4`
-- **Port**: 5000
-- **Features**: ASP.NET Core API with PostgreSQL and Redis integration
 
-### FeatBit Evaluation Server  
-- **Image**: `featbitdocker/featbit-evaluation-server:5.1.4`
-- **Port**: 5100
-- **Features**: High-performance evaluation engine
-
-### FeatBit Angular UI
-- **Image**: `featbitdocker/featbit-ui:5.1.4`
-- **Port**: 8081
-- **Features**: Complete management interface
-
-### FeatBit Data Analytics Server
-- **Image**: `featbitdocker/featbit-data-analytics-server:latest`
-- **Port**: 8200
-- **Features**: Python-based analytics and reporting
-
-## 🔧 Development
-
-### Adding New Services
-
-To add a new .NET service:
-1. Create the service project
-2. Add project reference in `FeatBit.AppHost.csproj`
-3. Register in `AppHost.cs` with `AddProject<>()`
-
-To add a new Docker service:
-1. Use `AddContainer()` for existing images
-2. Use `AddDockerfile()` for custom builds
-
-### Environment Configuration
-
-Services automatically receive connection strings for:
-- PostgreSQL via `postgres.Resource.ConnectionStringExpression`
-- Redis via `redis.Resource.ConnectionStringExpression`
-
-## 🚀 Deployment to Azure
+## ☁️ Deployment to Azure
 
 ### Prerequisites for Azure Deployment
 
@@ -154,29 +123,7 @@ Services automatically receive connection strings for:
    azd up
    ```
    
-   During deployment, you'll be prompted to:
-   - Select your Azure subscription
-   - Choose a region (e.g., `West US 2`)
-   - Enter PostgreSQL connection string
-   - Enter Redis connection string
-   
-   The deployment will:
-   - Create a resource group (e.g., `rg-featbit-aspire-env`)
-   - Create an Azure Container Apps Environment
-   - Create an Azure Container Registry
-   - Create Application Insights for monitoring
-   - Deploy all 4 container services with 3 replicas each for high availability
-   - Configure HTTPS endpoints automatically
 
-5. **Access your deployed application**
-   
-   After successful deployment, you'll see:
-   ```
-   - FeatBit UI: https://featbit-ui.<environment>.azurecontainerapps.io/
-   - FeatBit API: https://featbit-api.<environment>.azurecontainerapps.io/
-   - Evaluation Server: https://featbit-evaluation-server.<environment>.azurecontainerapps.io/
-   - Aspire Dashboard: https://aspire-dashboard.ext.<environment>.azurecontainerapps.io
-   ```
 
 ### Updating Your Deployment
 
