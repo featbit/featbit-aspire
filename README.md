@@ -17,36 +17,33 @@ Deploy [FeatBit](https://github.com/featbit/featbit) - an open-source feature fl
 
 ## ⚙️ Prerequisites
 
-**Local Development:**
-- .NET 10 SDK or later
-- Docker Desktop (running)
-- PostgreSQL or MongoDB instance
-- Redis instance
+- **Azure subscription**
+- **Azure Developer CLI (azd)** - [Install guide](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- **PostgreSQL or MongoDB database** - Create a database instance and run FeatBit database initialization scripts:
+  - For PostgreSQL: Run the [PostgreSQL init script](https://github.com/featbit/featbit/tree/main/modules/back-end/src/Infrastructure/Store/Dbs/PostgreSql)
+  - For MongoDB: Run the [MongoDB init script](https://github.com/featbit/featbit/tree/main/modules/back-end/src/Infrastructure/Store/Dbs/MongoDb)
+- **Redis instance** - Set up a Redis cache instance (local or cloud)
 
-**Azure Deployment:**
-- Azure subscription
-- Azure Developer CLI (azd)
+## 🚀 Deploy to Azure
 
-## 🚀 Local Development
-
-### 1. Clone and Configure
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/featbit/featbit-aspire.git
 cd featbit-aspire
 ```
 
-### 2. Configure Connection Strings
+### 2. Configure Database and Redis
 
-Edit `FeatBit.AppHost/appsettings.Development.json`:
+Edit `FeatBit.AppHost/appsettings.json` with your database and Redis connection strings:
 
 **For PostgreSQL:**
 ```json
 {
   "DbProvider": "Postgres",
   "ConnectionStrings": {
-    "Postgres": "Host=localhost;Database=featbit;Username=postgres;Password=yourpassword;Port=5432",
-    "Redis": "localhost:6379"
+    "Postgres": "Host=yourhost;Database=featbit;Username=user;Password=pass;Port=5432",
+    "Redis": "yourhost:6379,password=yourpassword,ssl=True"
   }
 }
 ```
@@ -56,8 +53,8 @@ Edit `FeatBit.AppHost/appsettings.Development.json`:
 {
   "DbProvider": "MongoDb",
   "ConnectionStrings": {
-    "MongoDb": "mongodb://localhost:27017/featbit",
-    "Redis": "localhost:6379"
+    "MongoDb": "mongodb://yourhost:27017/featbit",
+    "Redis": "yourhost:6379,password=yourpassword,ssl=True"
   },
   "MongoDb": {
     "Database": "featbit",
@@ -66,204 +63,251 @@ Edit `FeatBit.AppHost/appsettings.Development.json`:
 }
 ```
 
-### 3. Run the Application
+### 3. Login to Azure
 
 ```bash
-dotnet run --project FeatBit.AppHost
+azd auth login
 ```
 
-### 4. Access Services
+A browser window will open for Azure authentication. Sign in with your Azure account.
 
-- **Aspire Dashboard**: https://localhost:17106
-- **FeatBit UI**: http://localhost:8081
-- **FeatBit Web API**: http://localhost:5000
-- **FeatBit Evaluation Server**: http://localhost:5100
-- **FeatBit Data Analytics**: http://localhost:8200
+### 4. Initialize and Deploy
+
+```bash
+azd up
+```
+
+This command will initialize and deploy in one step. During the process, you'll be prompted for several inputs:
+
+**Prompt 1: Environment Name**
+```
+? Enter a new environment name: [? for help]
+```
+- Enter a unique name (e.g., `featbit-prod`, `featbit-dev`)
+- This will be used in resource naming (e.g., `rg-featbit-prod`)
+- Use lowercase letters, numbers, and hyphens only
+
+**Prompt 2: Azure Subscription** (if you have multiple subscriptions)
+```
+? Select an Azure Subscription to use:
+  1. Subscription 1 (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+> 2. Subscription 2 (yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy)
+  3. Subscription 3 (zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz)
+```
+- Use arrow keys to select your subscription
+- Press Enter to confirm
+
+**Prompt 3: Azure Region**
+```
+? Select an Azure location to use:
+  1. (US) East US (eastus)
+> 2. (US) West US 2 (westus2)
+  3. (Europe) West Europe (westeurope)
+  4. (Asia Pacific) Southeast Asia (southeastasia)
+  ...
+```
+- Select the region closest to your users
+- Common choices: `eastus`, `westus2`, `westeurope`, `southeastasia`
+- Press Enter to confirm
+
+**Deployment Progress:**
+
+After providing these inputs, the deployment begins:
+
+```bash
+Initializing project...
+
+Provisioning Azure resources (azd provision)
+Provisioning Azure resources can take some time
+
+  (✓) Done: Resource group: rg-featbit-prod
+  (✓) Done: Container Apps Environment: featbit-env
+  (✓) Done: Log Analytics workspace
+  (✓) Done: Application Insights
+
+Deploying services (azd deploy)
+
+  (✓) Done: Deploying service featbit-ui
+  - Endpoint: https://featbit-ui.xxx.eastus.azurecontainerapps.io
+  
+  (✓) Done: Deploying service featbit-api
+  - Endpoint: https://featbit-api.xxx.eastus.azurecontainerapps.io
+  
+  (✓) Done: Deploying service featbit-evaluation-server
+  - Endpoint: https://featbit-evaluation-server.xxx.eastus.azurecontainerapps.io
+
+SUCCESS: Your application was deployed to Azure in 12 minutes.
+```
+
+**⏱️ Expected Time:** 10-15 minutes total
+
+### 5. Access Your Deployment
+
+After deployment completes, note the endpoints displayed:
+
+- **FeatBit UI**: `https://featbit-ui.<random>.azurecontainerapps.io`
+- **FeatBit Web API**: `https://featbit-api.<random>.azurecontainerapps.io`
+- **FeatBit Evaluation Server**: `https://featbit-evaluation-server.<random>.azurecontainerapps.io`
 
 **Default Login:**
 - Email: `test@featbit.com`
 - Password: `123456`
 
+## 🔄 Update Deployment
 
-## ☁️ Deployment to Azure
+When you need to update your deployed application (e.g., upgrading to a new FeatBit version), use:
 
-### Prerequisites for Azure Deployment
-
-- **Azure subscription** with appropriate permissions
-- **Azure Developer CLI (azd)** installed
-- **Existing PostgreSQL and Redis** instances (connection strings configured in `appsettings.json`)
-
-### Initial Deployment
-
-1. **Install Azure Developer CLI**
-   ```bash
-   # Windows (using winget)
-   winget install microsoft.azd
-   
-   # Or download from https://aka.ms/azd-install
-   ```
-
-2. **Login to Azure**
-   ```bash
-   azd auth login
-   ```
-
-3. **Initialize the project**
-   ```bash
-   azd init --from-code
-   ```
-   
-   When prompted:
-   - Select `.NET (Aspire)` as the detected service
-   - Enter a unique environment name (e.g., `featbit-aspire-env`)
-   - Confirm to continue
-
-4. **Deploy to Azure**
-   ```bash
-   azd up
-   ```
-   
-
-
-### Updating Your Deployment
-
-After making code changes, update your Azure deployment:
-
-1. **Quick update (code changes only)**
-   ```bash
-   azd deploy
-   ```
-   This redeploys your services without reprovisioning infrastructure.
-
-2. **Full update (code + infrastructure changes)**
-   ```bash
-   azd up
-   ```
-   Use this when you've modified `AppHost.cs` configuration.
-
-3. **Update specific service**
-   ```bash
-   azd deploy <service-name>
-   # Example: azd deploy featbit-api
-   ```
-
-### Managing Your Azure Resources
-
-**View deployment status:**
 ```bash
+azd deploy
+```
+
+This command is sufficient for most updates, including:
+- **Upgrading Docker image versions** in AppHost.cs (e.g., `featbit/featbit-api-server:5.1.4` → `5.2.0`)
+- **Changing environment variables** in appsettings.json
+- **Updating configuration** settings
+
+### Deployment Process
+
+When you run `azd deploy`, it will detect changes and prompt for confirmation:
+
+```bash
+$ azd deploy
+
+? The following services will be updated. Continue? (Y/n)
+  - featbit-api
+  - featbit-ui
+```
+
+Press `Y` to confirm and proceed with deployment.
+
+**Deployment output:**
+
+```bash
+Deploying services (azd deploy)
+
+  (✓) Done: Deploying service featbit-api
+  - Endpoint: https://featbit-api.xxx.eastus.azurecontainerapps.io
+  
+  (✓) Done: Deploying service featbit-ui
+  - Endpoint: https://featbit-ui.xxx.eastus.azurecontainerapps.io
+
+SUCCESS: Your application was deployed to Azure in 3 minutes 45 seconds.
+```
+
+**What gets updated:**
+- Modified container images are pulled and deployed
+- Updated services are redeployed with zero downtime
+- New environment variables (if changed in appsettings.json)
+- Health checks verify services are running correctly
+
+**If no changes are detected:**
+
+```bash
+$ azd deploy
+
+  (✓) Done: Service featbit-api is up to date
+  (✓) Done: Service featbit-ui is up to date
+
+SUCCESS: All services are up to date.
+```
+
+### When to Use `azd up` Instead
+
+Use `azd up` only when you've made **infrastructure-level changes**:
+
+```bash
+azd up
+```
+
+**Examples requiring `azd up`:**
+- **Adding or removing services** in AppHost.cs
+- **Changing scaling rules** (min/max replicas, CPU/memory limits)
+- **Modifying network configuration** (ports, ingress settings)
+- **Updating Container Apps Environment settings**
+
+**Note:** For most day-to-day updates (like upgrading FeatBit versions), `azd deploy` is faster and sufficient.
+
+**Quick Reference:**
+- **Upgrading FeatBit versions** (changing image tags) → Use `azd deploy` (⏱️ ~3-5 min)
+- **Adding/removing services or changing infrastructure** → Use `azd up` (⏱️ ~10-15 min)
+
+## 📊 Monitor Deployment
+
+```bash
+# View all resources and endpoints
 azd show
-```
 
-**View environment details:**
-```bash
-azd env get-values
-```
+# View logs
+azd logs
 
-**Monitor logs:**
-```bash
+# Open Application Insights
 azd monitor
 ```
 
-**Delete all Azure resources:**
+## 🧹 Clean Up
+
+Remove all Azure resources:
+
 ```bash
-azd down --force --purge
+azd down
 ```
 
-Or using Azure CLI:
-```bash
-az group delete --name rg-featbit-aspire-env --yes --no-wait
+You'll be prompted to confirm:
+```
+? Total resources to delete: 6, are you sure you want to continue? (y/N)
 ```
 
-### Architecture in Azure
+Type `y` and press Enter to delete all resources.
+
+## 📋 Azure Resources Created
 
 The deployment creates:
-
-- **Azure Container Apps Environment** - Managed Kubernetes environment
-- **Azure Container Registry** - Private container image storage
+- **Azure Container Apps Environment** - Managed hosting environment
 - **Application Insights** - Monitoring and telemetry
-- **Log Analytics Workspaces** - Centralized logging
-- **4 Container Apps** (each with 3 replicas for high availability):
+- **Log Analytics Workspace** - Centralized logging
+- **4 Container Apps** (each with 3-10 replicas):
   - `featbit-api` - Web API Server (external HTTPS)
   - `featbit-evaluation-server` - Evaluation Server (external HTTPS)
   - `featbit-ui` - Angular UI (external HTTPS)
   - `featbit-da-server` - Data Analytics (internal only)
 
-### Production Configuration
+## 🔧 Troubleshooting
 
-The application automatically detects publish mode and:
-- Uses explicit ports (5000, 5100, 8081) for **local development**
-- Uses automatic port assignment (port 80) for **Azure deployment**
-- Configures HTTPS endpoints for external services in Azure
-- Sets up internal-only access for the Data Analytics service
-- Configures environment variables with connection strings
-- Enables Application Insights for monitoring
-- Scales services with 3-10 replicas for high availability
+**Deployment fails:**
+```bash
+# Run with debug output
+azd deploy --debug
 
-### Cost Optimization
-
-To reduce costs in development:
-- Modify replica counts in `AppHost.cs`:
-  ```csharp
-  containerApp.Template.Scale.MinReplicas = 1;
-  containerApp.Template.Scale.MaxReplicas = 3;
-  ```
-- Delete resources when not in use: `azd down`
-- Use Azure Cost Management to monitor spending
-
-## 🔍 Monitoring
-
-The Aspire Dashboard provides:
-- **Service health** and status
-- **Logs** from all services
-- **Metrics** and telemetry
-- **Distributed tracing**
-- **Resource usage**
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-1. **Docker not running**
-   - Ensure Docker Desktop is started
-   - Check container status in Aspire Dashboard
-
-2. **Port conflicts**
-   - Modify port assignments in `AppHost.cs`
-   - Use `WithHttpEndpoint(hostPort: <new-port>)`
-
-3. **Azure connection issues**
-   - Verify Azure CLI authentication: `az login`
-   - Check Azure subscription permissions
-
-### Logs
-
-Access logs through:
-- **Aspire Dashboard** - Real-time logs for all services
-- **Docker Desktop** - Container logs
-- **Azure Portal** - Production logs (when deployed)
-
-## 📁 Project Structure
-
-```
-featbit-aspire/
-├── FeatBit.AppHost/           # Aspire orchestration
-├── FeatBit.ServiceDefaults/   # Shared service configuration
-├── FeatBit.FeatureFlagService/ # Feature flag REST API
-├── FeatBit.UserService/       # User management REST API
-├── python-app/                # Python analytics service
-│   ├── main.py
-│   ├── requirements.txt
-│   └── Dockerfile
-└── README.md
+# Check authentication
+azd auth login
+az account show
 ```
 
-## 🤝 Contributing
+**Update connection strings after deployment:**
+```bash
+az containerapp update \
+  --name featbit-api \
+  --resource-group rg-<your-env-name> \
+  --set-env-vars \
+    "Postgres__ConnectionString=<your-connection>" \
+    "Redis__ConnectionString=<your-redis-connection>"
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make changes and test locally
-4. Submit a pull request
+**View logs:**
+```bash
+# All services
+azd logs
 
-## 📝 License
+# Specific service
+azd logs --service featbit-api
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 📚 Resources
+
+- [FeatBit Documentation](https://docs.featbit.co)
+- [FeatBit GitHub](https://github.com/featbit/featbit)
+- [.NET Aspire Documentation](https://learn.microsoft.com/dotnet/aspire)
+
+## 📄 License
+
+This project follows the same license as FeatBit. See the [LICENSE](LICENSE) file for details.

@@ -31,7 +31,7 @@ public static class AppHostSrvWebApi
             .WithHttpHealthCheck("/health/liveness")
             .PublishAsAzureContainerApp((_, app) =>
             {
-                app.Template.Scale.MinReplicas = 3;
+                app.Template.Scale.MinReplicas = 1;
                 app.Template.Scale.MaxReplicas = 10;
             });
 

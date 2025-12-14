@@ -25,7 +25,7 @@ public static class AppHostSrvDataAnalytics
             .WithEnvironment("HEALTH_CHECK_PATH", "/health")
             .PublishAsAzureContainerApp((_, app) =>
             {
-                app.Template.Scale.MinReplicas = 3;
+                app.Template.Scale.MinReplicas = 1;
                 app.Template.Scale.MaxReplicas = 10;
                 app.Configuration.Ingress.External = false;
             });
