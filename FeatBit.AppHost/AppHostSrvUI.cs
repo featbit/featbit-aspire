@@ -7,13 +7,15 @@ public static class AppHostSrvUI
         IResourceBuilder<ContainerResource> webApi,
         IResourceBuilder<ContainerResource> evaluationServer)
     {
-        // FeatBit Angular UI
-        var angularUIBuilder = builder.AddContainer("featbit-ui", "featbit/featbit-ui", "latest");
-        
+        // FeatBit Angular UI - wait for webapi and evaluation server to be ready
+        var angularUIBuilder = builder.AddContainer("featbit-ui", "featbit/featbit-ui", "latest")
+            .WaitFor(webApi)
+            .WaitFor(evaluationServer);
+
         if (builder.ExecutionContext.IsPublishMode)
         {
             angularUIBuilder = angularUIBuilder
-                .WithHttpEndpoint(name: "http");
+                .WithHttpEndpoint(targetPort: 80, name: "http");
         }
         else
         {
@@ -22,30 +24,31 @@ public static class AppHostSrvUI
         }
 
         var angularUI = angularUIBuilder
-            .WithEnvironment("DEMO_URL", "https://featbit-samples.vercel.app")
-            .PublishAsAzureContainerApp((infrastructure, containerApp) =>
-            {
-                // Set minimum replicas to 3 for high availability
-                containerApp.Template.Scale.MinReplicas = 1;
-                // Optionally set maximum replicas
-                containerApp.Template.Scale.MaxReplicas = 10;
-            });
+            .WithEnvironment("DEMO_URL", "https://featbit-samples.vercel.app");
 
         // Configure API and Evaluation URLs for browser access (external URLs)
-        // In production, these should be replaced with actual external URLs
         if (builder.ExecutionContext.IsPublishMode)
         {
+            // Important: Since the UI runs in the browser, it needs external URLs
+            // The webapi and evaluation server must have External = true in their ingress config
             angularUI = angularUI
-                .WithEnvironment("API_URL", webApi.GetEndpoint("http"))
-                .WithEnvironment("EVALUATION_URL", evaluationServer.GetEndpoint("http"))
-                .WithExternalHttpEndpoints();
+                .WithEnvironment("API_URL", webApi.GetEndpoint("https"))
+                .WithEnvironment("EVALUATION_URL", evaluationServer.GetEndpoint("https"))
+                .WithExternalHttpEndpoints()
+                .PublishAsAzureContainerApp((infrastructure, containerApp) =>
+                {
+                    containerApp.Template.Scale.MinReplicas = 1;
+                    containerApp.Template.Scale.MaxReplicas = 10;
+                    containerApp.Configuration.Ingress.External = true;
+                });
         }
         // For development, manually specify the localhost URLs that will be accessible from browser
         else
         {
             angularUI = angularUI
                 .WithEnvironment("API_URL", "http://localhost:5000")
-                .WithEnvironment("EVALUATION_URL", "http://localhost:5100");
+                .WithEnvironment("EVALUATION_URL", "http://localhost:5100")
+                .WithExternalHttpEndpoints();
         }
 
         return angularUI;

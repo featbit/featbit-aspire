@@ -22,11 +22,12 @@ public static class AppHostSrvDataAnalytics
             .WithEnvironment("LOG_LEVEL", "INFO")
             .WithEnvironment("ENABLE_METRICS", "true")
             .WithEnvironment("METRICS_PORT", "9090")
-            .WithEnvironment("HEALTH_CHECK_PATH", "/health");
+            .WithEnvironment("HEALTH_CHECK_PATH", "/health")
+            .WithEnvironment("PORT", "80");
 
         // Configure endpoints based on execution mode
         container = isPublishMode
-            ? container.WithHttpEndpoint(name: "http")
+            ? container.WithHttpEndpoint(targetPort: 80, name: "http")
             : container.WithHttpEndpoint(port: 8200, targetPort: 80, name: "http", isProxied: false);
 
         container = container.PublishAsAzureContainerApp((_, app) =>
@@ -34,6 +35,13 @@ public static class AppHostSrvDataAnalytics
             app.Template.Scale.MinReplicas = 1;
             app.Template.Scale.MaxReplicas = 10;
             app.Configuration.Ingress.External = false;
+            
+            var containerResource = app.Template.Containers[0].Value!;
+            containerResource.Resources = new()
+            {
+                Cpu = 0.75,
+                Memory = "1.5Gi"
+            };
         });
 
         if (isMongoDb)

@@ -26,20 +26,31 @@ public static class AppHostSrvWebApi
             .WithEnvironment("CacheProvider", "Redis")
             .WithEnvironment("OLAP__ServiceHost", dataAnalytics.GetEndpoint("http"))
             .WithEnvironment("ASPNETCORE_URLS", $"http://+:{Port.ToString()}")
-            .WithEnvironment("AllowedHosts", "*")
-            .WithExternalHttpEndpoints()
+            .WithEnvironment("AllowedHosts", "*");
+
+        container = isPublishMode
+            ? container.WithHttpEndpoint(targetPort: Port, name: "http")
+                       .WithHttpsEndpoint(targetPort: Port, name: "https")
+            : container.WithHttpEndpoint(port: Port, targetPort: Port, name: "http");
+
+        // Mark endpoints as external BEFORE PublishAsAzureContainerApp
+        container = container.WithExternalHttpEndpoints();
+
+        container = container
+            .WithHttpHealthCheck("/health/liveness")
             .PublishAsAzureContainerApp((_, app) =>
             {
                 app.Template.Scale.MinReplicas = 1;
                 app.Template.Scale.MaxReplicas = 10;
                 app.Configuration.Ingress.External = true;
+                
+                var containerResource = app.Template.Containers[0].Value!;
+                containerResource.Resources = new()
+                {
+                Cpu = 0.75,
+                Memory = "1.5Gi"
+                };
             });
-
-        container = isPublishMode
-            ? container.WithHttpEndpoint(targetPort: Port, name: "http")
-            : container.WithHttpEndpoint(port: Port, targetPort: Port, name: "http");
-
-        container = container.WithHttpHealthCheck("/health/liveness");
 
         if (applicationInsights is not null)
         {

@@ -1,10 +1,12 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.5.2.0
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11205.157 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FeatBit.AppHost", "FeatBit.AppHost\FeatBit.AppHost.csproj", "{0B777407-51E0-D5CD-ADF2-C14643CD38F6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FeatBit.ServiceDefaults", "FeatBit.ServiceDefaults\FeatBit.ServiceDefaults.csproj", "{DA1F4C7D-59FE-52E8-ACC9-C9E72E086DEC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FeatBit.Test", "FeatBit.Test\FeatBit.Test.csproj", "{16041A44-F3AE-41A9-8959-DF24214C2DCA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,10 +22,10 @@ Global
 		{DA1F4C7D-59FE-52E8-ACC9-C9E72E086DEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DA1F4C7D-59FE-52E8-ACC9-C9E72E086DEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA1F4C7D-59FE-52E8-ACC9-C9E72E086DEC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{93D79793-C993-E4AC-9494-50472C7980A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{93D79793-C993-E4AC-9494-50472C7980A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{93D79793-C993-E4AC-9494-50472C7980A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{93D79793-C993-E4AC-9494-50472C7980A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16041A44-F3AE-41A9-8959-DF24214C2DCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16041A44-F3AE-41A9-8959-DF24214C2DCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16041A44-F3AE-41A9-8959-DF24214C2DCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16041A44-F3AE-41A9-8959-DF24214C2DCA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

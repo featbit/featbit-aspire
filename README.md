@@ -183,6 +183,19 @@ After deployment completes, note the endpoints displayed:
 - Email: `test@featbit.com`
 - Password: `123456`
 
+### 7. Enable WebSocket Support for Evaluation Server
+
+The FeatBit Evaluation Server requires WebSocket support. Enable sticky sessions (session affinity) using Azure CLI:
+
+```bash
+az containerapp ingress sticky-sessions set \
+  --name featbit-evaluation-server \
+  --resource-group rg-featbit-trial \
+  --affinity sticky
+```
+
+**Note:** Replace `rg-featbit-trial` with your resource group name if different. This configuration persists across `azd deploy` runs but may need to be reapplied after `azd up`.
+
 ## 🔄 Update Deployment
 
 When you need to update your deployed application (e.g., upgrading to a new FeatBit version), use:
