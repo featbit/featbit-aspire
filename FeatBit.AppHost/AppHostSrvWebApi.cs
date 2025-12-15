@@ -24,7 +24,9 @@ public static class AppHostSrvWebApi
             .WithEnvironment("SSOEnabled", "true")
             .WithEnvironment("MqProvider", "Redis")
             .WithEnvironment("CacheProvider", "Redis")
-            .WithEnvironment("OLAP__ServiceHost", dataAnalytics.GetEndpoint("http"))
+            .WithEnvironment("OLAP__ServiceHost", isPublishMode
+                ? dataAnalytics.GetEndpoint("https")
+                : dataAnalytics.GetEndpoint("http"))
             .WithEnvironment("ASPNETCORE_URLS", $"http://+:{Port.ToString()}")
             .WithEnvironment("AllowedHosts", "*");
 

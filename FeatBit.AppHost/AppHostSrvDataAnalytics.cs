@@ -28,6 +28,7 @@ public static class AppHostSrvDataAnalytics
         // Configure endpoints based on execution mode
         container = isPublishMode
             ? container.WithHttpEndpoint(targetPort: 80, name: "http")
+                       .WithHttpsEndpoint(targetPort: 80, name: "https")
             : container.WithHttpEndpoint(port: 8200, targetPort: 80, name: "http", isProxied: false);
 
         container = container.PublishAsAzureContainerApp((_, app) =>
