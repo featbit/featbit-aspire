@@ -28,18 +28,19 @@ public static class AppHostSrvEvaluationServer
             .WithEnvironment("ASPNETCORE_URLS", $"http://+:{Port.ToString()}")
             .WithEnvironment("AllowedHosts", "*")
             .WithExternalHttpEndpoints()
-            .WithHttpHealthCheck("/health/liveness")
             .PublishAsAzureContainerApp((_, app) =>
             {
                 app.Template.Scale.MinReplicas = 1;
                 app.Template.Scale.MaxReplicas = 10;
+                app.Configuration.Ingress.External = true;
             });
 
         // Configure endpoints based on execution context
         container = isPublishMode
             ? container.WithHttpEndpoint(targetPort: Port, name: "http")
-                       .WithHttpsEndpoint(targetPort: Port, name: "https")
             : container.WithHttpEndpoint(port: Port, targetPort: Port, name: "http");
+
+        container = container.WithHttpHealthCheck("/health/liveness");
 
         // Add Application Insights if enabled
         if (applicationInsights is not null)

@@ -63,7 +63,37 @@ Edit `FeatBit.AppHost/appsettings.json` with your database and Redis connection 
 }
 ```
 
-### 3. Login to Azure
+### 3. Secure Your Credentials (Recommended)
+
+⚠️ **Security Best Practice**: The connection strings in `appsettings.json` contain sensitive credentials. For production deployments, consider these options:
+
+**Option A: Deploy with appsettings.json (Quick Start)**
+- Use the credentials in `appsettings.json` as-is
+- ⚠️ Ensure the file is in `.gitignore` to avoid committing secrets
+- Suitable for testing and development
+
+**Option B: Use Environment Variables (Recommended)**
+- Remove credentials from `appsettings.json`
+- Set them as environment variables before deployment
+- More secure, credentials not stored in code
+
+```bash
+# Windows PowerShell
+$env:ConnectionStrings__MongoDb="mongodb://your-connection-string"
+$env:ConnectionStrings__Redis="your-redis-connection-string"
+
+# Linux/Mac
+export ConnectionStrings__MongoDb="mongodb://your-connection-string"
+export ConnectionStrings__Redis="your-redis-connection-string"
+```
+
+**Option C: Use Azure Key Vault (Production)**
+- Store secrets in Azure Key Vault
+- Configure Container Apps to reference Key Vault
+- Best security, managed secret rotation
+- [Learn more about Key Vault references](https://learn.microsoft.com/azure/container-apps/manage-secrets)
+
+### 4. Login to Azure
 
 ```bash
 azd auth login
@@ -71,7 +101,7 @@ azd auth login
 
 A browser window will open for Azure authentication. Sign in with your Azure account.
 
-### 4. Initialize and Deploy
+### 5. Initialize and Deploy
 
 ```bash
 azd up
@@ -141,7 +171,7 @@ SUCCESS: Your application was deployed to Azure in 12 minutes.
 
 **⏱️ Expected Time:** 10-15 minutes total
 
-### 5. Access Your Deployment
+### 6. Access Your Deployment
 
 After deployment completes, note the endpoints displayed:
 

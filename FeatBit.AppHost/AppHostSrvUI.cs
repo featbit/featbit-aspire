@@ -13,7 +13,7 @@ public static class AppHostSrvUI
         if (builder.ExecutionContext.IsPublishMode)
         {
             angularUIBuilder = angularUIBuilder
-                .WithHttpEndpoint(targetPort: 80, name: "http");
+                .WithHttpEndpoint(name: "http");
         }
         else
         {
@@ -36,8 +36,8 @@ public static class AppHostSrvUI
         if (builder.ExecutionContext.IsPublishMode)
         {
             angularUI = angularUI
-                .WithEnvironment("API_URL", webApi.GetEndpoint("https"))
-                .WithEnvironment("EVALUATION_URL", evaluationServer.GetEndpoint("https"))
+                .WithEnvironment("API_URL", webApi.GetEndpoint("http"))
+                .WithEnvironment("EVALUATION_URL", evaluationServer.GetEndpoint("http"))
                 .WithExternalHttpEndpoints();
         }
         // For development, manually specify the localhost URLs that will be accessible from browser

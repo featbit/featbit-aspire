@@ -28,17 +28,18 @@ public static class AppHostSrvWebApi
             .WithEnvironment("ASPNETCORE_URLS", $"http://+:{Port.ToString()}")
             .WithEnvironment("AllowedHosts", "*")
             .WithExternalHttpEndpoints()
-            .WithHttpHealthCheck("/health/liveness")
             .PublishAsAzureContainerApp((_, app) =>
             {
                 app.Template.Scale.MinReplicas = 1;
                 app.Template.Scale.MaxReplicas = 10;
+                app.Configuration.Ingress.External = true;
             });
 
         container = isPublishMode
             ? container.WithHttpEndpoint(targetPort: Port, name: "http")
-                       .WithHttpsEndpoint(targetPort: Port, name: "https")
             : container.WithHttpEndpoint(port: Port, targetPort: Port, name: "http");
+
+        container = container.WithHttpHealthCheck("/health/liveness");
 
         if (applicationInsights is not null)
         {

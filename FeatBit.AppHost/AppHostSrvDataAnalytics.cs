@@ -13,22 +13,28 @@ public static class AppHostSrvDataAnalytics
         IResourceBuilder<IResourceWithConnectionString>? applicationInsights = null)
     {
         var isMongoDb = dbProvider.Equals("MongoDb", StringComparison.OrdinalIgnoreCase);
+        var isPublishMode = builder.ExecutionContext.IsPublishMode;
 
         var container = builder
             .AddContainer("featbit-da-server", "featbit/featbit-data-analytics-server", "latest")
-            .WithHttpEndpoint(port: 8200, targetPort: 80, name: "http", isProxied: false)
             .WithEnvironment("DB_PROVIDER", dbProvider)
             .WithEnvironment("CHECK_DB_LIVNESS", "false")
             .WithEnvironment("LOG_LEVEL", "INFO")
             .WithEnvironment("ENABLE_METRICS", "true")
             .WithEnvironment("METRICS_PORT", "9090")
-            .WithEnvironment("HEALTH_CHECK_PATH", "/health")
-            .PublishAsAzureContainerApp((_, app) =>
-            {
-                app.Template.Scale.MinReplicas = 1;
-                app.Template.Scale.MaxReplicas = 10;
-                app.Configuration.Ingress.External = false;
-            });
+            .WithEnvironment("HEALTH_CHECK_PATH", "/health");
+
+        // Configure endpoints based on execution mode
+        container = isPublishMode
+            ? container.WithHttpEndpoint(name: "http")
+            : container.WithHttpEndpoint(port: 8200, targetPort: 80, name: "http", isProxied: false);
+
+        container = container.PublishAsAzureContainerApp((_, app) =>
+        {
+            app.Template.Scale.MinReplicas = 1;
+            app.Template.Scale.MaxReplicas = 10;
+            app.Configuration.Ingress.External = false;
+        });
 
         if (isMongoDb)
         {
