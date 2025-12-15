@@ -26,7 +26,7 @@ public static class AppHostSrvUI
             .PublishAsAzureContainerApp((infrastructure, containerApp) =>
             {
                 // Set minimum replicas to 3 for high availability
-                containerApp.Template.Scale.MinReplicas = 0;
+                containerApp.Template.Scale.MinReplicas = 1;
                 // Optionally set maximum replicas
                 containerApp.Template.Scale.MaxReplicas = 10;
             });
