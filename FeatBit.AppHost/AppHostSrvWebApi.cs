@@ -30,6 +30,25 @@ public static class AppHostSrvWebApi
             .WithEnvironment("ASPNETCORE_URLS", $"http://+:{Port.ToString()}")
             .WithEnvironment("AllowedHosts", "*");
 
+        // Add OAuth providers environment variables
+        var oauthProviders = builder.Configuration.GetSection("OAuthProviders").GetChildren();
+        var index = 0;
+        foreach (var provider in oauthProviders)
+        {
+            var name = builder.Configuration[$"OAuthProviders:{index}:Name"];
+            var clientId = builder.Configuration[$"OAuthProviders:{index}:ClientId"];
+            var clientSecret = builder.Configuration[$"OAuthProviders:{index}:ClientSecret"];
+            
+            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(clientSecret))
+            {
+                container = container
+                    .WithEnvironment($"OAuthProviders__{index}__Name", name)
+                    .WithEnvironment($"OAuthProviders__{index}__ClientId", clientId)
+                    .WithEnvironment($"OAuthProviders__{index}__ClientSecret", clientSecret);
+            }
+            index++;
+        }
+
         container = isPublishMode
             ? container.WithHttpEndpoint(targetPort: Port, name: "http")
                        .WithHttpsEndpoint(targetPort: Port, name: "https")

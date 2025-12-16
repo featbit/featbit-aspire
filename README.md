@@ -357,7 +357,19 @@ azd logs
 azd logs --service featbit-api
 ```
 
-## 📚 Resources
+## � Helpful Tips
+
+**Using MicrosoftDocs MCP Server for Deployment Troubleshooting and Assistance**
+
+The [MicrosoftDocs MCP Server](https://github.com/microsoft/azure-mcp) can significantly enhance your deployment experience by providing real-time access to official Azure documentation and best practices. This MCP Server was heavily relied upon during the creation and testing of this project, offering:
+
+- **Accurate Azure guidance** - Access to up-to-date Azure documentation and examples
+- **Deployment assistance** - Step-by-step help with Azure Container Apps, azd commands, and configurations
+- **Troubleshooting support** - Quick answers to common Azure deployment issues
+
+If you're using an AI assistant that supports MCP (Model Context Protocol), consider configuring the MicrosoftDocs MCP Server for a smoother deployment experience.
+
+## �📚 Resources
 
 - [FeatBit Documentation](https://docs.featbit.co)
 - [FeatBit GitHub](https://github.com/featbit/featbit)
