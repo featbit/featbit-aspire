@@ -1,5 +1,3 @@
-using Aspire.Hosting;
-
 namespace FeatBit.AppHost;
 
 public static class AppHostSrvEvaluationServer
@@ -44,7 +42,7 @@ public static class AppHostSrvEvaluationServer
             .WithHttpHealthCheck("/health/liveness")
             .PublishAsAzureContainerApp((_, app) =>
             {
-                app.Template.Scale.MinReplicas = 1;
+                app.Template.Scale.MinReplicas = 3;
                 app.Template.Scale.MaxReplicas = 10;
                 app.Configuration.Ingress.External = true;
                 

@@ -314,6 +314,18 @@ The deployment creates:
   - `featbit-ui` - Angular UI (external HTTPS)
   - `featbit-da-server` - Data Analytics (internal only)
 
+  ## ⚙️ Host configuration notes
+
+  - **Replica range:** Container Apps are configured with a minimum of **3** and maximum of **10** replicas (see host files in FeatBit.AppHost).
+  - **Resource allocation:** API, Evaluation Server, and Data Analytics services are configured with **0.75 CPU** and **1.5Gi memory**.
+  - **Default image tag:** Container images in the host are set to `latest` by default — change the image tags in `FeatBit.AppHost` to pin versions before production deploys.
+  - **Service ports:** API `5000`, Evaluation Server `5100`, UI (development `8081`, publish/container `80`), Data Analytics (development `8200` → container `80`).
+  - **DbProvider default:** When `DbProvider` is not set the host defaults to `Postgres`.
+  - **Application Insights:** Application Insights is only added when running in publish/Azure mode (publish-time monitoring).
+  - **Health checks:** API and Evaluation Server use `/health/liveness` endpoint for health monitoring.
+  - **External endpoints:** ⚠️ **Important:** `WithExternalHttpEndpoints()` must be called **before** `PublishAsAzureContainerApp()` for proper Azure Container Apps ingress configuration. This ordering is critical for external access to work correctly.
+
+
 ## 🔧 Troubleshooting
 
 **Deployment fails:**

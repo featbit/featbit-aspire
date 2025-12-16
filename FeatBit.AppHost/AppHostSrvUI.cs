@@ -37,7 +37,7 @@ public static class AppHostSrvUI
                 .WithExternalHttpEndpoints()
                 .PublishAsAzureContainerApp((infrastructure, containerApp) =>
                 {
-                    containerApp.Template.Scale.MinReplicas = 1;
+                    containerApp.Template.Scale.MinReplicas = 3;
                     containerApp.Template.Scale.MaxReplicas = 10;
                     containerApp.Configuration.Ingress.External = true;
                 });
