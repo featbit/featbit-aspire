@@ -3,13 +3,9 @@ using FeatBit.Sdk.Server.Model;
 using FeatBit.Sdk.Server.Options;
 
 // setup SDK options
-//var options = new FbOptionsBuilder("kGG6UVKLzEaewBoq6JEjMQ2FA_kFn-qki1UwaaPLmRBw")
-//    .Event(new Uri("https://featbit-evaluation-server.delightfulcoast-374f34c4.westus2.azurecontainerapps.io"))
-//    .Streaming(new Uri("wss://featbit-evaluation-server.delightfulcoast-374f34c4.westus2.azurecontainerapps.io"))
-//    .Build();
-var options = new FbOptionsBuilder("kGG6UVKLzEaewBoq6JEjMQ2FA_kFn-qki1UwaaPLmRBw")
-    .Event(new Uri("http://localhost:5100"))
-    .Streaming(new Uri("ws://localhost:5100"))
+var options = new FbOptionsBuilder("server-key-qki1UwaaPLmRBw")
+    .Event(new Uri("https://app-eval.featbit.co"))
+    .Streaming(new Uri("wss://app-eval.featbit.co"))
     .Build();
 
 
