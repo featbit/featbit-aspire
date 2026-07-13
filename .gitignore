@@ -60,3 +60,11 @@ appsettings.Development.json
 .vs/
 
 .azure
+
+# Aspire local/deployment state and generated publish artifacts
+.aspire/
+aspire-output/
+
+# Local environment overrides can contain deployment secrets
+.env
+.env.*
