@@ -13,6 +13,14 @@ The implementation is based on FeatBit's tagged
 [`docker-compose-otel.yml`](https://github.com/featbit/featbit/blob/5.4.4/docker/composes/docker-compose-otel.yml),
 and the [5.4.4 release](https://github.com/featbit/featbit/releases/tag/5.4.4), with the Data Analytics service intentionally omitted.
 
+## Release versioning
+
+Every FeatBit Aspire release identifies the upstream FeatBit version it targets. This
+source tree is currently pinned to
+[FeatBit v5.4.4](https://github.com/featbit/featbit/releases/tag/5.4.4) for pre-release
+testing. The next stable FeatBit Aspire release will target FeatBit v6.0.0 or later. The
+project version and every FeatBit container image are pinned in [`apphost.cs`](apphost.cs).
+
 ## Reduced core topology
 
 FeatBit 5.4.4 does not provide a switch that replaces or disables its Data Analytics dependency. The official minimal Compose deployment includes that service. This Aspire project omits it to provide a smaller core deployment with:

@@ -2,10 +2,12 @@
 #:package Aspire.Hosting.PostgreSQL@13.4.6
 #:package Aspire.Hosting.Redis@13.4.6
 #:sdk Aspire.AppHost.Sdk@13.4.6
+#:property Version=5.4.4
 
 using Aspire.Hosting.ApplicationModel;
 using Microsoft.Extensions.Configuration;
 
+// FeatBit Aspire releases track the corresponding upstream FeatBit version.
 const string FeatBitVersion = "5.4.4";
 const string DatabaseName = "featbit";
 
