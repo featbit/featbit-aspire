@@ -11,7 +11,15 @@ The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Contai
 - An external PostgreSQL server
 - An external Redis service when deploying Standard mode
 
-Create the `featbit` PostgreSQL database and run the SQL files in [`infra/postgresql/docker-entrypoint-initdb.d`](../infra/postgresql/docker-entrypoint-initdb.d) in version order before deploying.
+Create the `featbit` PostgreSQL database, then download and run the SQL files from the
+upstream FeatBit tag that matches `Version` in `apphost.csproj`. Run the files in
+version order before deploying. For the current target, use the
+[FeatBit 5.4.4 PostgreSQL initialization files](https://github.com/featbit/featbit/tree/5.4.4/infra/postgresql/docker-entrypoint-initdb.d).
+The URL pattern for other releases is:
+
+```text
+https://github.com/featbit/featbit/tree/{version}/infra/postgresql/docker-entrypoint-initdb.d
+```
 
 ## Configure the deployment
 
@@ -99,16 +107,16 @@ PowerShell:
 
 ```powershell
 az login
-aspire deploy --apphost ./apphost.cs --environment Production --list-steps
-aspire deploy --apphost ./apphost.cs --environment Production
+aspire deploy --apphost ./apphost.csproj --environment Production --list-steps
+aspire deploy --apphost ./apphost.csproj --environment Production
 ```
 
 Bash:
 
 ```bash
 az login
-aspire deploy --apphost ./apphost.cs --environment Production --list-steps
-aspire deploy --apphost ./apphost.cs --environment Production
+aspire deploy --apphost ./apphost.csproj --environment Production --list-steps
+aspire deploy --apphost ./apphost.csproj --environment Production
 ```
 
 The first deployment should run in an interactive terminal so Azure tenant selection and unresolved parameters can be handled. In CI/CD, authenticate to Azure before the deploy step, provide the same configuration keys as environment variables, and disable prompts:
@@ -116,13 +124,13 @@ The first deployment should run in an interactive terminal so Azure tenant selec
 PowerShell:
 
 ```powershell
-aspire deploy --apphost ./apphost.cs --environment Production --non-interactive
+aspire deploy --apphost ./apphost.csproj --environment Production --non-interactive
 ```
 
 Bash:
 
 ```bash
-aspire deploy --apphost ./apphost.cs --environment Production --non-interactive
+aspire deploy --apphost ./apphost.csproj --environment Production --non-interactive
 ```
 
 Parameter names containing a dash use an underscore in environment variables. For example, `jwt-key` becomes `Parameters__jwt_key`, and `postgres-password` becomes `Parameters__postgres_password`.

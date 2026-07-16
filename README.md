@@ -44,6 +44,10 @@ aspire run
 
 Open `http://localhost:8081` after the resources are ready.
 
+On the first local run of a FeatBit version, the AppHost downloads that version's
+PostgreSQL initialization files from the upstream FeatBit GitHub tag and caches them
+under the Git-ignored `.aspire` directory. Later runs reuse the cached files.
+
 ## Deploy to Azure Container Apps
 
 The Azure deployment runs the FeatBit UI, API, and Evaluation services in Azure Container Apps. It requires an initialized external PostgreSQL database and, for Standard mode, an external Redis service.
@@ -56,7 +60,7 @@ PowerShell:
 $env:FeatBit__Azure__MinReplicas = "1"
 $env:FeatBit__Azure__MaxReplicas = "10"
 az login
-aspire deploy --apphost ./apphost.cs --environment Production
+aspire deploy --apphost ./apphost.csproj --environment Production
 ```
 
 Bash:
@@ -65,7 +69,7 @@ Bash:
 export FeatBit__Azure__MinReplicas=1
 export FeatBit__Azure__MaxReplicas=10
 az login
-aspire deploy --apphost ./apphost.cs --environment Production
+aspire deploy --apphost ./apphost.csproj --environment Production
 ```
 
 Set both values to the same number for a fixed replica count, or use a range to enable automatic scaling for all three Container Apps.

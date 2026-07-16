@@ -1,6 +1,6 @@
 {
   "appHost": {
-    "path": "apphost.cs"
+    "path": "apphost.csproj"
   },
   "profiles": {
     "https": {
