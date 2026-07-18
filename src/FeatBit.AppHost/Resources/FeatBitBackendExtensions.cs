@@ -11,6 +11,9 @@ public static class FeatBitBackendExtensions
         string image,
         int port,
         string telemetryServiceName,
+        FeatBitService service,
+        FeatBitServiceOptions serviceOptions,
+        FeatBitServiceConfigurationResources serviceConfiguration,
         FeatBitOptions options,
         FeatBitPostgresResources postgres,
         FeatBitRedisResources redis,
@@ -27,7 +30,12 @@ public static class FeatBitBackendExtensions
                 name: "http")
             .WithExternalHttpEndpoints()
             .WithHttpHealthCheck("/health/readiness")
-            .WithFeatBitOpenTelemetry(telemetryServiceName, options, telemetry);
+            .WithFeatBitOpenTelemetry(telemetryServiceName, options, telemetry)
+            .WithFeatBitServiceConfiguration(
+                service,
+                serviceOptions,
+                serviceConfiguration,
+                options.Version);
 
         if (postgres.LocalDatabase is not null)
         {

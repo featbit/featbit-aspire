@@ -53,8 +53,9 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 
-# Development settings
+# Local AppHost settings
 appsettings.Development.json
+appsettings.Production.json
 
 # Visual Studio
 .vs/

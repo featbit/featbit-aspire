@@ -11,9 +11,12 @@ The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Contai
 - An external PostgreSQL server
 - An external Redis service when deploying Standard mode
 
-Create the `featbit` PostgreSQL database, then download and run the SQL files from the
-upstream FeatBit tag that matches `Version` in `apphost.csproj`. Run the files in
-version order before deploying. For the current target, use the
+Create and initialize the PostgreSQL database whose exact name is configured by
+`Parameters:postgres-database`, then download and run the SQL files from the upstream
+FeatBit tag that matches `Version` in `apphost.csproj`. Run the files in version order
+before deploying. The upstream scripts use `featbit` by default; if you configure a
+different database name, make sure that database contains the same initialized schema.
+For the current target, use the
 [FeatBit 5.4.4 PostgreSQL initialization files](https://github.com/featbit/featbit/tree/5.4.4/infra/postgresql/docker-entrypoint-initdb.d).
 The URL pattern for other releases is:
 
@@ -21,152 +24,253 @@ The URL pattern for other releases is:
 https://github.com/featbit/featbit/tree/{version}/infra/postgresql/docker-entrypoint-initdb.d
 ```
 
-## Configure the deployment
+## Deploy
 
-Set non-secret values directly in the deployment environment and obtain secret values from your local secret store or CI/CD secret store. Do not commit production credentials to `appsettings*.json`, `aspire.config.json`, or pipeline YAML.
+The production template uses HS256 JWT signing and disables OpenTelemetry. Complete the following steps in order. The current AppHost supports Standalone and Standard modes; it does not deploy the Professional Kafka, ClickHouse, and Data Analytics Server topology.
 
-The following examples disable OpenTelemetry to keep the initial deployment minimal.
+### 1. Create the production settings file
+
+Copy the non-secret template from the repository root.
 
 PowerShell:
 
 ```powershell
-$env:Azure__SubscriptionId = "<subscription-id>"
-$env:Azure__Location = "<azure-region>"
-$env:Azure__ResourceGroup = "<resource-group>"
-$env:FeatBit__Azure__MinReplicas = "1"
-$env:FeatBit__Azure__MaxReplicas = "10"
+Copy-Item appsettings.Production.example.json appsettings.Production.json
+```
 
-$env:Parameters__postgres_host = "<postgres-host>"
-$env:Parameters__postgres_port = "5432"
-$env:Parameters__postgres_user = "<postgres-user>"
+Bash:
+
+```bash
+cp appsettings.Production.example.json appsettings.Production.json
+```
+
+For the first deployment, replace only the `<...>` placeholders:
+
+- Azure subscription, location, and resource group
+- PostgreSQL host, port, user, and initialized database name
+
+The template configures independent Azure Container Apps replica ranges under
+`FeatBit:Azure:Ui`, `FeatBit:Azure:Api`, and `FeatBit:Azure:Els`. The defaults are UI
+`1-3`, API `3-10`, and ELS `3-10`. Set a service's minimum and maximum to the same value
+for a fixed replica count.
+
+Keep the remaining defaults unless you already know that they must change. In particular, do not put the PostgreSQL password, JWT key, Redis connection string, OAuth client secrets, or OpenTelemetry authentication headers in this file. The local `appsettings.Production.json` file is ignored by Git.
+
+### 2. Choose a deployment mode and set its environment variables
+
+| Mode | `FeatBit:UseRedis` | Required environment variables |
+| --- | --- | --- |
+| Standalone: PostgreSQL only | `false` | PostgreSQL password and JWT key |
+| Standard: PostgreSQL and Redis | `true` | PostgreSQL password, JWT key, and Redis connection string |
+
+Environment variables apply to the current terminal session. Set them in the same terminal that will run `aspire deploy`.
+
+#### Standalone mode
+
+The production template already sets `FeatBit:UseRedis` to `false`.
+
+PowerShell:
+
+```powershell
 $env:Parameters__postgres_password = "<postgres-password>"
-
-$env:FeatBit__Jwt__Algorithm = "HS256"
 $env:Parameters__jwt_key = "<stable-random-key-at-least-64-characters>"
-$env:FeatBit__OpenTelemetry__Enabled = "false"
 ```
 
 Bash:
 
 ```bash
-export Azure__SubscriptionId="<subscription-id>"
-export Azure__Location="<azure-region>"
-export Azure__ResourceGroup="<resource-group>"
-export FeatBit__Azure__MinReplicas=1
-export FeatBit__Azure__MaxReplicas=10
-
-export Parameters__postgres_host="<postgres-host>"
-export Parameters__postgres_port="5432"
-export Parameters__postgres_user="<postgres-user>"
 export Parameters__postgres_password="<postgres-password>"
-
-export FeatBit__Jwt__Algorithm=HS256
 export Parameters__jwt_key="<stable-random-key-at-least-64-characters>"
-export FeatBit__OpenTelemetry__Enabled=false
 ```
 
-The replica range applies to the UI, API, and Evaluation Container Apps. It defaults to 1–10. Set the minimum and maximum to the same value for a fixed replica count; keep the minimum at 1 or higher to avoid scale-to-zero cold starts.
+#### Standard mode
 
-See [FeatBit v5.4.4 JWT configuration](https://github.com/featbit/featbit/tree/5.4.4/modules/back-end#jwt) for other signing options.
-
-### Standalone: PostgreSQL only
+First set `FeatBit:UseRedis` to `true` in `appsettings.Production.json`, then set all three values below.
 
 PowerShell:
 
 ```powershell
-$env:FeatBit__UseRedis = "false"
-```
-
-Bash:
-
-```bash
-export FeatBit__UseRedis=false
-```
-
-### Standard: PostgreSQL and Redis
-
-PowerShell:
-
-```powershell
-$env:FeatBit__UseRedis = "true"
+$env:Parameters__postgres_password = "<postgres-password>"
+$env:Parameters__jwt_key = "<stable-random-key-at-least-64-characters>"
 $env:ConnectionStrings__redis = "<redis-connection-string>"
 ```
 
 Bash:
 
 ```bash
-export FeatBit__UseRedis=true
+export Parameters__postgres_password="<postgres-password>"
+export Parameters__jwt_key="<stable-random-key-at-least-64-characters>"
 export ConnectionStrings__redis="<redis-connection-string>"
 ```
 
-## Deploy
+Use the same stable JWT key for every deployment. Changing it invalidates existing access tokens. See the [FeatBit v5.4.4 JWT configuration](https://github.com/featbit/featbit/tree/5.4.4/modules/back-end#jwt) if you need RS256 or ES256 instead of the default HS256.
 
-Sign in, preview the Aspire deployment pipeline, and deploy:
+Aspire parameter names use hyphens, but their environment variable form uses underscores. For example, `postgres-database` becomes `Parameters__postgres_database`, `postgres-password` becomes `Parameters__postgres_password`, and `jwt-key` becomes `Parameters__jwt_key`.
+
+### 3. Sign in and deploy
+
+Run these commands in the same terminal where the mode-specific environment variables were set:
+
+```shell
+az login
+az account show --query "{name:name,id:id,tenantId:tenantId}" --output table
+
+# Optional: preview the deployment pipeline without creating resources.
+aspire deploy --apphost ./apphost.csproj --environment Production --list-steps
+
+# Deploy to Azure Container Apps.
+aspire deploy --apphost ./apphost.csproj --environment Production
+```
+
+`--environment Production` loads `appsettings.Production.json`. Environment variables override values from the file.
+
+Run the first deployment in an interactive terminal so Azure tenant selection or missing parameter prompts can be handled. Do not pipe the command through another process because that can disable interactive prompts.
+
+### CI/CD deployment
+
+Because `appsettings.Production.json` is not committed, CI/CD should provide its values as environment variables as well.
+
+Both modes require:
+
+- `Azure__SubscriptionId`, `Azure__Location`, `Azure__ResourceGroup`
+- `FeatBit__Azure__Ui__MinReplicas`, `FeatBit__Azure__Ui__MaxReplicas`
+- `FeatBit__Azure__Api__MinReplicas`, `FeatBit__Azure__Api__MaxReplicas`
+- `FeatBit__Azure__Els__MinReplicas`, `FeatBit__Azure__Els__MaxReplicas`
+- `Parameters__postgres_host`, `Parameters__postgres_port`, `Parameters__postgres_user`, `Parameters__postgres_database`
+- `Parameters__postgres_password`, `Parameters__jwt_key`
+- `FeatBit__OpenTelemetry__Enabled=false`, unless an OTLP endpoint is configured
+
+Then choose one mode:
+
+- Standalone: `FeatBit__UseRedis=false`
+- Standard: `FeatBit__UseRedis=true` and `ConnectionStrings__redis=<redis-connection-string>`
+
+After the Azure login context and every required value are configured, deploy without prompts:
+
+```shell
+aspire deploy --apphost ./apphost.csproj --environment Production --non-interactive
+```
+
+For other configuration paths, replace `:` with `__`. For example, `FeatBit:Api:Environment:SSOEnabled` becomes `FeatBit__Api__Environment__SSOEnabled`.
+
+That completes the deployment flow. The remaining sections are optional configuration references.
+
+## Optional FeatBit service configuration
+
+You can skip this section for the first deployment. The template and FeatBit container images already provide working defaults.
+
+Service-specific non-secret values go in these sections of `appsettings.Production.json`:
+
+- `FeatBit:Ui:Environment`
+- `FeatBit:Api:Environment`
+- `FeatBit:Els:Environment`
+
+The list below was checked against FeatBit 5.4.4 and FeatBit Helm chart 0.9.13. Native environment variable names such as `Cors__AllowedOrigins` can be added to the corresponding `Environment` section without changing the AppHost code.
+
+### UI
+
+| Environment variable | Purpose |
+| --- | --- |
+| `DEMO_URL` | Dino demo URL. |
+| `BASE_HREF` | Path base when hosting the UI below a path such as `/featbit/`. |
+| `DISPLAY_API_URL` | Optional API URL shown in Getting Started. |
+| `DISPLAY_EVALUATION_URL` | Optional Event/Streaming URL shown in Getting Started. |
+
+`API_URL` and `EVALUATION_URL` are generated from Aspire endpoints and must not be overridden. See the [FeatBit 5.4.4 UI environment reference](https://github.com/featbit/featbit/tree/5.4.4/modules/front-end#docker-compose).
+
+### API authentication and SSO
+
+Set `SSOEnabled` to `true` under `FeatBit:Api:Environment` to enable workspace OIDC SSO endpoints. The OIDC provider details remain workspace data configured through FeatBit after deployment.
+
+Google and GitHub social login are separate from workspace OIDC SSO. Configure the public client ID normally, but map the client secret to an Aspire secret parameter:
+
+```json
+{
+  "FeatBit": {
+    "Api": {
+      "Environment": {
+        "OAuthProviders__0__Name": "Google",
+        "OAuthProviders__0__ClientId": "<google-client-id>"
+      },
+      "SecretParameters": {
+        "OAuthProviders__0__ClientSecret": "api-google-client-secret"
+      }
+    }
+  }
+}
+```
+
+Provide the secret in the terminal before deploying:
 
 PowerShell:
 
 ```powershell
-az login
-aspire deploy --apphost ./apphost.csproj --environment Production --list-steps
-aspire deploy --apphost ./apphost.csproj --environment Production
+$env:Parameters__api_google_client_secret = "<google-client-secret>"
 ```
 
 Bash:
 
 ```bash
-az login
-aspire deploy --apphost ./apphost.csproj --environment Production --list-steps
-aspire deploy --apphost ./apphost.csproj --environment Production
+export Parameters__api_google_client_secret="<google-client-secret>"
 ```
 
-The first deployment should run in an interactive terminal so Azure tenant selection and unresolved parameters can be handled. In CI/CD, authenticate to Azure before the deploy step, provide the same configuration keys as environment variables, and disable prompts:
+Use index `1` for a second provider and set its name to `GitHub`. FeatBit 5.4.4 supports the case-sensitive names `Google` and `GitHub`.
 
-PowerShell:
+Other API settings include `Jwt__Issuer`, `Jwt__Audience`, `UsageTracking__FlushIntervalMs`, `UsageTracking__ChannelCapacity`, Redis population timeouts, `AllowedHosts`, and `Logging__...`. `OLAP__ServiceHost` is only useful when a Data Analytics Server is also deployed; this AppHost does not deploy the Professional topology.
 
-```powershell
-aspire deploy --apphost ./apphost.csproj --environment Production --non-interactive
-```
+### Evaluation server (ELS)
 
-Bash:
+| Group | Environment variables |
+| --- | --- |
+| Streaming | `Streaming__TrackClientHostName`, `Streaming__TokenExpirySeconds` |
+| CORS | `Cors__Enabled`, `Cors__AllowedOrigins`, `Cors__AllowedHeaders`, `Cors__AllowedMethods`, `Cors__AllowCredentials` |
+| Rate limiting | `RateLimiting__Enabled`, `RateLimiting__Distributed`, `RateLimiting__Type`, `RateLimiting__PermitLimit`, `RateLimiting__WindowSeconds`, `RateLimiting__QueueLimit`, `RateLimiting__SegmentsPerWindow`, `RateLimiting__TokenLimit`, `RateLimiting__TokensPerPeriod`, `RateLimiting__ReplenishmentPeriodSeconds` |
 
-```bash
-aspire deploy --apphost ./apphost.csproj --environment Production --non-interactive
-```
+Use semicolons to separate explicit CORS values. `Cors__AllowCredentials=true` cannot be combined with `Cors__AllowedOrigins=*`.
 
-Parameter names containing a dash use an underscore in environment variables. For example, `jwt-key` becomes `Parameters__jwt_key`, and `postgres-password` becomes `Parameters__postgres_password`.
+`RateLimiting__Type` accepts `FixedWindow`, `SlidingWindow`, or `TokenBucket`. Distributed rate limiting requires both `FeatBit:UseRedis=true` and `RateLimiting__Distributed=true`; otherwise every ELS replica applies its own limits. Per-endpoint overrides use `RateLimiting__Endpoints__<Key>__<Property>`.
+
+See the [FeatBit 5.4.4 ELS environment reference](https://github.com/featbit/featbit/tree/5.4.4/modules/evaluation-server#configuration).
+
+### Values managed by Aspire
+
+The AppHost manages `VERSION`, UI endpoint URLs, backend database/queue/cache connections, OpenTelemetry variables, and API JWT signing material. Configure those through the top-level `FeatBit`, `Parameters`, and `ConnectionStrings` sections instead of service `Environment` entries.
+
+`SecretParameters` contains only a mapping to an Aspire parameter name, never the secret value. Parameter names may contain only lowercase letters, digits, and hyphens and must not exceed 63 characters. UI configuration is browser-visible, so `FeatBit:Ui:SecretParameters` is rejected.
 
 ## Optional OpenTelemetry export
 
-OpenTelemetry is enabled by default. To export telemetry from Azure Container Apps, configure an external OTLP/gRPC endpoint instead of disabling it:
+To export telemetry from Azure Container Apps, update these sections in `appsettings.Production.json`:
+
+```json
+{
+  "FeatBit": {
+    "OpenTelemetry": {
+      "Enabled": true,
+      "UseHeaders": false,
+      "Insecure": false
+    }
+  },
+  "Parameters": {
+    "otel-exporter-otlp-endpoint": "https://<otel-collector-host>:4317"
+  }
+}
+```
+
+Keep the existing PostgreSQL parameter entries when editing the `Parameters` section. The endpoint is non-secret and can be stored in the local production settings file.
+
+In CI/CD, provide it as `Parameters__otel_exporter_otlp_endpoint` instead.
+
+If the collector requires authentication headers, set `FeatBit:OpenTelemetry:UseHeaders` to `true` in `appsettings.Production.json` and provide the header value as a secret:
 
 PowerShell:
 
 ```powershell
-$env:FeatBit__OpenTelemetry__Enabled = "true"
-$env:FeatBit__OpenTelemetry__Insecure = "false"
-$env:Parameters__otel_exporter_otlp_endpoint = "https://<otel-collector-host>:4317"
-```
-
-Bash:
-
-```bash
-export FeatBit__OpenTelemetry__Enabled=true
-export FeatBit__OpenTelemetry__Insecure=false
-export Parameters__otel_exporter_otlp_endpoint="https://<otel-collector-host>:4317"
-```
-
-If the collector requires headers, provide them as a secret:
-
-PowerShell:
-
-```powershell
-$env:FeatBit__OpenTelemetry__UseHeaders = "true"
 $env:Parameters__otel_exporter_otlp_headers = "<header-name>=<header-value>"
 ```
 
 Bash:
 
 ```bash
-export FeatBit__OpenTelemetry__UseHeaders=true
 export Parameters__otel_exporter_otlp_headers="<header-name>=<header-value>"
 ```

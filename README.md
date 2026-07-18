@@ -57,8 +57,12 @@ Configure the required deployment values, sign in to Azure, and deploy:
 PowerShell:
 
 ```powershell
-$env:FeatBit__Azure__MinReplicas = "1"
-$env:FeatBit__Azure__MaxReplicas = "10"
+$env:FeatBit__Azure__Ui__MinReplicas = "1"
+$env:FeatBit__Azure__Ui__MaxReplicas = "3"
+$env:FeatBit__Azure__Api__MinReplicas = "3"
+$env:FeatBit__Azure__Api__MaxReplicas = "10"
+$env:FeatBit__Azure__Els__MinReplicas = "3"
+$env:FeatBit__Azure__Els__MaxReplicas = "10"
 az login
 aspire deploy --apphost ./apphost.csproj --environment Production
 ```
@@ -66,12 +70,16 @@ aspire deploy --apphost ./apphost.csproj --environment Production
 Bash:
 
 ```bash
-export FeatBit__Azure__MinReplicas=1
-export FeatBit__Azure__MaxReplicas=10
+export FeatBit__Azure__Ui__MinReplicas=1
+export FeatBit__Azure__Ui__MaxReplicas=3
+export FeatBit__Azure__Api__MinReplicas=3
+export FeatBit__Azure__Api__MaxReplicas=10
+export FeatBit__Azure__Els__MinReplicas=3
+export FeatBit__Azure__Els__MaxReplicas=10
 az login
 aspire deploy --apphost ./apphost.csproj --environment Production
 ```
 
-Set both values to the same number for a fixed replica count, or use a range to enable automatic scaling for all three Container Apps.
+Each service scales independently. Set a service's minimum and maximum to the same value for a fixed replica count, or use a range to enable automatic scaling for that Container App.
 
 See [Deploy to Azure Container Apps](docs/deploy-to-azure-container-apps.md) for the required parameters, secrets, database initialization, topology selection, and CI/CD usage.

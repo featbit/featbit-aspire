@@ -9,8 +9,6 @@ public sealed record FeatBitPostgresResources(
 
 public static class FeatBitPostgresExtensions
 {
-    private const string DatabaseName = "featbit";
-
     public static async Task<FeatBitPostgresResources> AddFeatBitPostgresAsync(
         this IDistributedApplicationBuilder builder,
         FeatBitOptions options)
@@ -25,10 +23,12 @@ public static class FeatBitPostgresExtensions
                 .WithDescription("PostgreSQL login user.");
             var password = builder.AddParameter("postgres-password", secret: true)
                 .WithDescription("PostgreSQL login password.");
+            var databaseNameParameter = builder.AddParameter("postgres-database")
+                .WithDescription("Name of the initialized FeatBit PostgreSQL database.");
             var connection = builder.AddConnectionString(
                 "postgres",
                 ReferenceExpression.Create(
-                    $"Host={host};Port={port};Username={user};Password={password};Database={DatabaseName}"));
+                    $"Host={host};Port={port};Username={user};Password={password};Database={databaseNameParameter}"));
 
             return new FeatBitPostgresResources(
                 connection.Resource.ConnectionStringExpression,
@@ -38,12 +38,19 @@ public static class FeatBitPostgresExtensions
         var initFiles = await PostgresInitFilesProvider.GetAsync(
             builder.AppHostDirectory,
             options.Version);
+        var databaseName = builder.Configuration["Parameters:postgres-database"];
+        if (string.IsNullOrWhiteSpace(databaseName))
+        {
+            throw new InvalidOperationException(
+                "Parameters:postgres-database must specify the local FeatBit PostgreSQL database name.");
+        }
+
         var postgres = builder.AddPostgres("postgres")
             .WithImageTag("15.10")
             .WithDataVolume("featbit-postgres-data")
             .WithInitFiles(initFiles)
             .WithLifetime(ContainerLifetime.Persistent);
-        var database = postgres.AddDatabase("featbit-db", DatabaseName);
+        var database = postgres.AddDatabase("featbit-db", databaseName);
 
         return new FeatBitPostgresResources(
             database.Resource.ConnectionStringExpression,

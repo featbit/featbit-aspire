@@ -21,18 +21,34 @@ public sealed record FeatBitOpenTelemetryOptions(
     bool UseHeaders,
     bool Insecure);
 
-public sealed record FeatBitAzureOptions(int MinReplicas, int MaxReplicas);
+public sealed record FeatBitAzureScaleOptions(int MinReplicas, int MaxReplicas);
+
+public sealed record FeatBitAzureOptions(
+    FeatBitAzureScaleOptions Ui,
+    FeatBitAzureScaleOptions Api,
+    FeatBitAzureScaleOptions Els);
+
+public sealed record FeatBitServiceOptions(
+    IReadOnlyDictionary<string, string> Environment,
+    IReadOnlyDictionary<string, string> SecretParameters);
 
 public sealed record FeatBitOptions(
     string Version,
     bool IsPublishMode,
     bool UseRedis,
+    FeatBitServiceOptions Ui,
+    FeatBitServiceOptions Api,
+    FeatBitServiceOptions Els,
     FeatBitJwtOptions Jwt,
     FeatBitOpenTelemetryOptions OpenTelemetry,
     FeatBitAzureOptions Azure)
 {
-    private const int DefaultAzureMinReplicas = 1;
-    private const int DefaultAzureMaxReplicas = 10;
+    private const int DefaultAzureUiMinReplicas = 1;
+    private const int DefaultAzureUiMaxReplicas = 3;
+    private const int DefaultAzureApiMinReplicas = 3;
+    private const int DefaultAzureApiMaxReplicas = 10;
+    private const int DefaultAzureElsMinReplicas = 3;
+    private const int DefaultAzureElsMaxReplicas = 10;
 
     public static FeatBitOptions Load(IDistributedApplicationBuilder builder)
     {
@@ -42,12 +58,22 @@ public sealed record FeatBitOptions(
         var configuration = builder.Configuration;
         var isPublishMode = builder.ExecutionContext.IsPublishMode;
         var jwt = LoadJwt(configuration, isPublishMode);
-        var azure = LoadAzure(configuration, isPublishMode);
+        var azure = LoadAzure(configuration);
 
         return new FeatBitOptions(
             version,
             isPublishMode,
             configuration.GetValue("FeatBit:UseRedis", false),
+            LoadService(
+                configuration,
+                "Ui",
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["DEMO_URL"] = "https://featbit-samples.vercel.app",
+                    ["BASE_HREF"] = "/"
+                }),
+            LoadService(configuration, "Api"),
+            LoadService(configuration, "Els"),
             jwt,
             new FeatBitOpenTelemetryOptions(
                 configuration.GetValue("FeatBit:OpenTelemetry:Enabled", true),
@@ -55,6 +81,137 @@ public sealed record FeatBitOptions(
                 configuration.GetValue("FeatBit:OpenTelemetry:Insecure", false)),
             azure);
     }
+
+    private static FeatBitServiceOptions LoadService(
+        IConfiguration configuration,
+        string serviceName,
+        IReadOnlyDictionary<string, string>? environmentDefaults = null)
+    {
+        var environment = new Dictionary<string, string>(
+            environmentDefaults ?? new Dictionary<string, string>(),
+            StringComparer.OrdinalIgnoreCase);
+        AddFlattenedValues(
+            configuration.GetSection($"FeatBit:{serviceName}:Environment"),
+            environment);
+
+        var secretParameters = new Dictionary<string, string>(
+            StringComparer.OrdinalIgnoreCase);
+        AddFlattenedValues(
+            configuration.GetSection($"FeatBit:{serviceName}:SecretParameters"),
+            secretParameters);
+
+        var duplicateTarget = environment.Keys.FirstOrDefault(
+            secretParameters.ContainsKey);
+        if (duplicateTarget is not null)
+        {
+            throw new InvalidOperationException(
+                $"FeatBit:{serviceName} environment variable '{duplicateTarget}' is configured " +
+                "as both a non-secret value and a secret parameter.");
+        }
+
+        foreach (var (environmentVariable, parameterName) in secretParameters)
+        {
+            ValidateParameterName(
+                parameterName,
+                $"FeatBit:{serviceName}:SecretParameters:{environmentVariable}");
+        }
+
+        return new FeatBitServiceOptions(environment, secretParameters);
+    }
+
+    private static void AddFlattenedValues(
+        IConfigurationSection section,
+        IDictionary<string, string> destination)
+    {
+        var prefix = section.Path + ConfigurationPath.KeyDelimiter;
+        var configuredPaths = new Dictionary<string, string>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in section.AsEnumerable())
+        {
+            if (entry.Value is null ||
+                !entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var relativePath = entry.Key[prefix.Length..];
+            var environmentVariable = relativePath
+                .Replace(
+                    ConfigurationPath.KeyDelimiter,
+                    "__",
+                    StringComparison.Ordinal);
+            ValidateEnvironmentVariableName(environmentVariable, section.Path);
+
+            if (configuredPaths.TryGetValue(environmentVariable, out var existingPath))
+            {
+                var existingIsHierarchical = existingPath.Contains(
+                    ConfigurationPath.KeyDelimiter,
+                    StringComparison.Ordinal);
+                var candidateIsHierarchical = relativePath.Contains(
+                    ConfigurationPath.KeyDelimiter,
+                    StringComparison.Ordinal);
+
+                // Environment variables turn `__` into configuration path delimiters.
+                // Prefer that hierarchical form so it can override a JSON key written
+                // in the native container environment form, such as Cors__Enabled.
+                if (candidateIsHierarchical && !existingIsHierarchical)
+                {
+                    configuredPaths[environmentVariable] = relativePath;
+                    destination[environmentVariable] = entry.Value;
+                }
+                else if (candidateIsHierarchical == existingIsHierarchical &&
+                         !relativePath.Equals(existingPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"{section.Path} defines ambiguous environment variable " +
+                        $"'{environmentVariable}' through '{existingPath}' and '{relativePath}'.");
+                }
+
+                continue;
+            }
+
+            configuredPaths.Add(environmentVariable, relativePath);
+            destination[environmentVariable] = entry.Value;
+        }
+    }
+
+    private static void ValidateEnvironmentVariableName(
+        string environmentVariable,
+        string configurationPath)
+    {
+        if (string.IsNullOrWhiteSpace(environmentVariable) ||
+            environmentVariable.Any(character =>
+                !IsAsciiLetterOrDigit(character) && character is not ('_' or '.')))
+        {
+            throw new InvalidOperationException(
+                $"{configurationPath} contains invalid environment variable name " +
+                $"'{environmentVariable}'. Use letters, digits, underscores, or periods.");
+        }
+    }
+
+    private static void ValidateParameterName(
+        string parameterName,
+        string configurationPath)
+    {
+        if (string.IsNullOrWhiteSpace(parameterName) ||
+            parameterName.Length > 63 ||
+            !IsAsciiLowercaseLetterOrDigit(parameterName[0]) ||
+            !IsAsciiLowercaseLetterOrDigit(parameterName[^1]) ||
+            parameterName.Any(character =>
+                !IsAsciiLowercaseLetterOrDigit(character) && character != '-'))
+        {
+            throw new InvalidOperationException(
+                $"{configurationPath} must reference a lowercase Aspire parameter name " +
+                "containing only letters, digits, or hyphens (maximum 63 characters).");
+        }
+    }
+
+    private static bool IsAsciiLetterOrDigit(char character) =>
+        character is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9';
+
+    private static bool IsAsciiLowercaseLetterOrDigit(char character) =>
+        character is >= 'a' and <= 'z' or >= '0' and <= '9';
 
     private static string GetVersion(IDistributedApplicationBuilder builder)
     {
@@ -97,37 +254,53 @@ public sealed record FeatBitOptions(
             GetRequiredFile(configuration, "FeatBit:Jwt:PublicKeyPath", algorithm));
     }
 
-    private static FeatBitAzureOptions LoadAzure(
-        IConfiguration configuration,
-        bool isPublishMode)
+    private static FeatBitAzureOptions LoadAzure(IConfiguration configuration)
     {
-        if (!isPublishMode)
-        {
-            return new FeatBitAzureOptions(
-                DefaultAzureMinReplicas,
-                DefaultAzureMaxReplicas);
-        }
+        return new FeatBitAzureOptions(
+            LoadAzureScale(
+                configuration,
+                "Ui",
+                DefaultAzureUiMinReplicas,
+                DefaultAzureUiMaxReplicas),
+            LoadAzureScale(
+                configuration,
+                "Api",
+                DefaultAzureApiMinReplicas,
+                DefaultAzureApiMaxReplicas),
+            LoadAzureScale(
+                configuration,
+                "Els",
+                DefaultAzureElsMinReplicas,
+                DefaultAzureElsMaxReplicas));
+    }
 
+    private static FeatBitAzureScaleOptions LoadAzureScale(
+        IConfiguration configuration,
+        string serviceName,
+        int defaultMinReplicas,
+        int defaultMaxReplicas)
+    {
+        var configurationPath = $"FeatBit:Azure:{serviceName}";
         var minReplicas = configuration.GetValue(
-            "FeatBit:Azure:MinReplicas",
-            DefaultAzureMinReplicas);
+            $"{configurationPath}:MinReplicas",
+            defaultMinReplicas);
         var maxReplicas = configuration.GetValue(
-            "FeatBit:Azure:MaxReplicas",
-            DefaultAzureMaxReplicas);
+            $"{configurationPath}:MaxReplicas",
+            defaultMaxReplicas);
 
         if (minReplicas is < 0 or > 1000)
         {
             throw new InvalidOperationException(
-                "FeatBit:Azure:MinReplicas must be between 0 and 1000.");
+                $"{configurationPath}:MinReplicas must be between 0 and 1000.");
         }
 
         if (maxReplicas is < 1 or > 1000 || minReplicas > maxReplicas)
         {
             throw new InvalidOperationException(
-                "FeatBit:Azure:MaxReplicas must be between 1 and 1000 and not less than MinReplicas.");
+                $"{configurationPath}:MaxReplicas must be between 1 and 1000 and not less than MinReplicas.");
         }
 
-        return new FeatBitAzureOptions(minReplicas, maxReplicas);
+        return new FeatBitAzureScaleOptions(minReplicas, maxReplicas);
     }
 
     private static string GetRequiredFile(

@@ -8,6 +8,7 @@ public static class FeatBitUiExtensions
     public static IResourceBuilder<ContainerResource> AddFeatBitUi(
         this IDistributedApplicationBuilder builder,
         FeatBitOptions options,
+        FeatBitServiceConfigurationResources serviceConfiguration,
         IResourceBuilder<ContainerResource> api,
         IResourceBuilder<ContainerResource> evaluation)
     {
@@ -17,8 +18,6 @@ public static class FeatBitUiExtensions
         return builder.AddContainer("featbit-ui", "featbit/featbit-ui", options.Version)
             .WithEnvironment("API_URL", apiUrl)
             .WithEnvironment("EVALUATION_URL", evaluationUrl)
-            .WithEnvironment("DEMO_URL", "https://featbit-samples.vercel.app")
-            .WithEnvironment("BASE_HREF", "/")
             .WithHttpEndpoint(
                 port: options.IsPublishMode ? null : 8081,
                 targetPort: 80,
@@ -26,7 +25,12 @@ public static class FeatBitUiExtensions
             .WithExternalHttpEndpoints()
             .WaitFor(api)
             .WaitFor(evaluation)
-            .PublishAsFeatBitAzureContainerApp(options);
+            .WithFeatBitServiceConfiguration(
+                FeatBitService.Ui,
+                options.Ui,
+                serviceConfiguration,
+                options.Version)
+            .PublishAsFeatBitAzureContainerApp(options, options.Azure.Ui);
     }
 
     private static ReferenceExpression GetBrowserUrl(

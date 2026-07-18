@@ -20,6 +20,7 @@ public static class FeatBitAzureExtensions
     public static IResourceBuilder<ContainerResource> PublishAsFeatBitAzureContainerApp(
         this IResourceBuilder<ContainerResource> resource,
         FeatBitOptions options,
+        FeatBitAzureScaleOptions scale,
         Action<AzureResourceInfrastructure, ContainerApp>? configure = null)
     {
         if (!options.IsPublishMode)
@@ -31,8 +32,8 @@ public static class FeatBitAzureExtensions
         {
             app.Template.Scale = new ContainerAppScale
             {
-                MinReplicas = options.Azure.MinReplicas,
-                MaxReplicas = options.Azure.MaxReplicas
+                MinReplicas = scale.MinReplicas,
+                MaxReplicas = scale.MaxReplicas
             };
             configure?.Invoke(infrastructure, app);
         });
