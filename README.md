@@ -1,10 +1,16 @@
 # FeatBit Aspire
 
-FeatBit Aspire uses .NET Aspire to run FeatBit locally and deploy it to Azure Container Apps.
+FeatBit Aspire uses .NET Aspire to deploy FeatBit to Azure Container Apps and run it locally.
 
 This source tree targets [FeatBit v5.4.4](https://github.com/featbit/featbit/releases/tag/5.4.4) and supports only the Standalone (PostgreSQL) and Standard (PostgreSQL + Redis) deployment modes.
 
 > Note: The FeatBit Aspire project is currently being rebuilt. The new implementation will support FeatBit v6.0.0 and later only.
+
+## Deploy to Azure Container Apps
+
+> [!IMPORTANT]
+> Follow the complete [Deploy to Azure Container Apps](docs/deploy-to-azure-container-apps.md)
+> guide from start to finish.
 
 ## Run locally
 
@@ -47,39 +53,3 @@ Open `http://localhost:8081` after the resources are ready.
 On the first local run of a FeatBit version, the AppHost downloads that version's
 PostgreSQL initialization files from the upstream FeatBit GitHub tag and caches them
 under the Git-ignored `.aspire` directory. Later runs reuse the cached files.
-
-## Deploy to Azure Container Apps
-
-The Azure deployment runs the FeatBit UI, API, and Evaluation services in Azure Container Apps. It requires an initialized external PostgreSQL database and, for Standard mode, an external Redis service.
-
-Configure the required deployment values, sign in to Azure, and deploy:
-
-PowerShell:
-
-```powershell
-$env:FeatBit__Azure__Ui__MinReplicas = "1"
-$env:FeatBit__Azure__Ui__MaxReplicas = "3"
-$env:FeatBit__Azure__Api__MinReplicas = "3"
-$env:FeatBit__Azure__Api__MaxReplicas = "10"
-$env:FeatBit__Azure__Els__MinReplicas = "3"
-$env:FeatBit__Azure__Els__MaxReplicas = "10"
-az login
-aspire deploy --apphost ./apphost.csproj --environment Production
-```
-
-Bash:
-
-```bash
-export FeatBit__Azure__Ui__MinReplicas=1
-export FeatBit__Azure__Ui__MaxReplicas=3
-export FeatBit__Azure__Api__MinReplicas=3
-export FeatBit__Azure__Api__MaxReplicas=10
-export FeatBit__Azure__Els__MinReplicas=3
-export FeatBit__Azure__Els__MaxReplicas=10
-az login
-aspire deploy --apphost ./apphost.csproj --environment Production
-```
-
-Each service scales independently. Set a service's minimum and maximum to the same value for a fixed replica count, or use a range to enable automatic scaling for that Container App.
-
-See [Deploy to Azure Container Apps](docs/deploy-to-azure-container-apps.md) for the required parameters, secrets, database initialization, topology selection, and CI/CD usage.

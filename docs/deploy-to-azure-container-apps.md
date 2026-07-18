@@ -8,17 +8,14 @@ The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Contai
 - Aspire CLI 13.4.6 or later
 - Azure CLI
 - An Azure subscription
-- An external PostgreSQL server
+- An external PostgreSQL database
 - An external Redis service when deploying Standard mode
 
-Create and initialize the PostgreSQL database whose exact name is configured by
-`Parameters:postgres-database`, then download and run the SQL files from the upstream
-FeatBit tag that matches `Version` in `apphost.csproj`. Run the files in version order
-before deploying. The upstream scripts use `featbit` by default; if you configure a
-different database name, make sure that database contains the same initialized schema.
-For the current target, use the
-[FeatBit 5.4.4 PostgreSQL initialization files](https://github.com/featbit/featbit/tree/5.4.4/infra/postgresql/docker-entrypoint-initdb.d).
-The URL pattern for other releases is:
+Before deploying, create a PostgreSQL database and run the matching FeatBit PostgreSQL
+initialization scripts to create its tables. For FeatBit 5.4.4, use these
+[PostgreSQL initialization files](https://github.com/featbit/featbit/tree/5.4.4/infra/postgresql/docker-entrypoint-initdb.d).
+
+For another release, replace `{version}` in this URL:
 
 ```text
 https://github.com/featbit/featbit/tree/{version}/infra/postgresql/docker-entrypoint-initdb.d
