@@ -74,4 +74,4 @@ aspire deploy --apphost ./apphost.csproj --environment Production
 
 Set both values to the same number for a fixed replica count, or use a range to enable automatic scaling for all three Container Apps.
 
-See [Deploy to Azure Container Apps](docs/deployment.md) for the required parameters, secrets, database initialization, topology selection, and CI/CD usage.
+See [Deploy to Azure Container Apps](docs/deploy-to-azure-container-apps.md) for the required parameters, secrets, database initialization, topology selection, and CI/CD usage.
