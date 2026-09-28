@@ -11,9 +11,18 @@ The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Contai
 - An external PostgreSQL database
 - An external Redis service when deploying Standard mode
 
-Before deploying, create a PostgreSQL database and run the matching FeatBit PostgreSQL
-initialization scripts to create its tables. For FeatBit 5.4.4, use these
-[PostgreSQL initialization files](https://github.com/featbit/featbit/tree/5.4.4/infra/postgresql/docker-entrypoint-initdb.d).
+Before deploying, run the matching FeatBit PostgreSQL initialization scripts with
+`psql` against your PostgreSQL server. For FeatBit 6.0.0-preview, use these
+[PostgreSQL initialization files](https://github.com/featbit/featbit/tree/6.0.0-preview/infra/postgresql/docker-entrypoint-initdb.d),
+including `v6.0.0.sql`, in filename order.
+
+The scripts create the `featbit` database and connect to it, so do not create it
+before running them. Set `postgres-database` to `featbit` in the settings below.
+For a custom database name, update the scripts' `CREATE DATABASE` and `\connect`
+statements first. The PostgreSQL server must allow the `pg_trgm` extension used by
+the initialization scripts.
+
+Use a separate test resource group and a fresh database for this preview.
 
 For another release, replace `{version}` in this URL:
 
@@ -23,7 +32,7 @@ https://github.com/featbit/featbit/tree/{version}/infra/postgresql/docker-entryp
 
 ## Deploy
 
-The production template uses HS256 JWT signing and disables OpenTelemetry. Complete the following steps in order. The current AppHost supports Standalone and Standard modes; it does not deploy the Professional Kafka, ClickHouse, and Data Analytics Server topology.
+The production template uses HS256 JWT signing and disables OpenTelemetry. Complete the following steps in order. The current AppHost supports Standalone and Standard modes (PG version); it does not deploy the Professional Kafka and ClickHouse topology or the optional Control Plane. FeatBit v6 retires the standalone Data Analytics Server; analytics run in the API and Evaluation services.
 
 ### 1. Create the production settings file
 
@@ -100,7 +109,7 @@ export Parameters__jwt_key="<stable-random-key-at-least-64-characters>"
 export ConnectionStrings__redis="<redis-connection-string>"
 ```
 
-Use the same stable JWT key for every deployment. Changing it invalidates existing access tokens. See the [FeatBit v5.4.4 JWT configuration](https://github.com/featbit/featbit/tree/5.4.4/modules/back-end#jwt) if you need RS256 or ES256 instead of the default HS256.
+Use the same stable JWT key for every deployment. Changing it invalidates existing access tokens. See the [FeatBit v6.0.0-preview JWT configuration](https://github.com/featbit/featbit/tree/6.0.0-preview/modules/back-end#jwt) if you need RS256 or ES256 instead of the default HS256.
 
 Aspire parameter names use hyphens, but their environment variable form uses underscores. For example, `postgres-database` becomes `Parameters__postgres_database`, `postgres-password` becomes `Parameters__postgres_password`, and `jwt-key` becomes `Parameters__jwt_key`.
 
@@ -162,7 +171,7 @@ Service-specific non-secret values go in these sections of `appsettings.Producti
 - `FeatBit:Api:Environment`
 - `FeatBit:Els:Environment`
 
-The list below was checked against FeatBit 5.4.4 and FeatBit Helm chart 0.9.13. Native environment variable names such as `Cors__AllowedOrigins` can be added to the corresponding `Environment` section without changing the AppHost code.
+The list below was checked against the FeatBit 6.0.0-preview source. Native environment variable names such as `Cors__AllowedOrigins` can be added to the corresponding `Environment` section without changing the AppHost code.
 
 ### UI
 
@@ -172,8 +181,9 @@ The list below was checked against FeatBit 5.4.4 and FeatBit Helm chart 0.9.13. 
 | `BASE_HREF` | Path base when hosting the UI below a path such as `/featbit/`. |
 | `DISPLAY_API_URL` | Optional API URL shown in Getting Started. |
 | `DISPLAY_EVALUATION_URL` | Optional Event/Streaming URL shown in Getting Started. |
+| `HOSTING_MODE` | UI hosting mode; defaults to `self-hosted`. |
 
-`API_URL` and `EVALUATION_URL` are generated from Aspire endpoints and must not be overridden. See the [FeatBit 5.4.4 UI environment reference](https://github.com/featbit/featbit/tree/5.4.4/modules/front-end#docker-compose).
+`API_URL` and `EVALUATION_URL` are generated from Aspire endpoints and must not be overridden. See the [FeatBit 6.0.0-preview UI environment reference](https://github.com/featbit/featbit/tree/6.0.0-preview/modules/front-end#environment-variables).
 
 ### API authentication and SSO
 
@@ -211,9 +221,9 @@ Bash:
 export Parameters__api_google_client_secret="<google-client-secret>"
 ```
 
-Use index `1` for a second provider and set its name to `GitHub`. FeatBit 5.4.4 supports the case-sensitive names `Google` and `GitHub`.
+Use index `1` for a second provider and set its name to `GitHub`. FeatBit 6.0.0-preview supports the case-sensitive names `Google` and `GitHub`.
 
-Other API settings include `Jwt__Issuer`, `Jwt__Audience`, `UsageTracking__FlushIntervalMs`, `UsageTracking__ChannelCapacity`, Redis population timeouts, `AllowedHosts`, and `Logging__...`. `OLAP__ServiceHost` is only useful when a Data Analytics Server is also deployed; this AppHost does not deploy the Professional topology.
+Other API settings include `Jwt__Issuer`, `Jwt__Audience`, `UsageTracking__FlushIntervalMs`, `UsageTracking__ChannelCapacity`, Redis population timeouts, `AllowedHosts`, and `Logging__...`. 
 
 ### Evaluation server (ELS)
 
@@ -227,7 +237,7 @@ Use semicolons to separate explicit CORS values. `Cors__AllowCredentials=true` c
 
 `RateLimiting__Type` accepts `FixedWindow`, `SlidingWindow`, or `TokenBucket`. Distributed rate limiting requires both `FeatBit:UseRedis=true` and `RateLimiting__Distributed=true`; otherwise every ELS replica applies its own limits. Per-endpoint overrides use `RateLimiting__Endpoints__<Key>__<Property>`.
 
-See the [FeatBit 5.4.4 ELS environment reference](https://github.com/featbit/featbit/tree/5.4.4/modules/evaluation-server#configuration).
+See the [FeatBit 6.0.0-preview ELS environment reference](https://github.com/featbit/featbit/tree/6.0.0-preview/modules/evaluation-server#environment-variables).
 
 ### Values managed by Aspire
 

@@ -47,7 +47,8 @@ public static class FeatBitPostgresExtensions
 
         var postgres = builder.AddPostgres("postgres")
             .WithImageTag("15.10")
-            .WithDataVolume("featbit-postgres-data")
+            // Initialize the v6 schema without reusing an existing v5 database.
+            .WithDataVolume("featbit-postgres-v6-preview-data")
             .WithInitFiles(initFiles)
             .WithLifetime(ContainerLifetime.Persistent);
         var database = postgres.AddDatabase("featbit-db", databaseName);
