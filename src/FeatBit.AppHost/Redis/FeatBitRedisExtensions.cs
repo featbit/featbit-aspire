@@ -17,7 +17,12 @@ public static class FeatBitRedisExtensions
             return new FeatBitRedisResources(null);
         }
 
-        var connection = builder.AddConnectionString("redis");
+        var connectionString = builder.AddConnectionString("redis");
+        // Keep the existing secret parameter and expose the external connection
+        // as a resource in the dashboard, matching the PostgreSQL connection.
+        var connection = builder.AddConnectionString(
+            "redis-connection",
+            connectionString.Resource.ConnectionStringExpression);
         return new FeatBitRedisResources(connection.Resource.ConnectionStringExpression);
     }
 }

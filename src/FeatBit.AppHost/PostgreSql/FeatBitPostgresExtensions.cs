@@ -31,7 +31,7 @@ public static class FeatBitPostgresExtensions
         var databaseNameParameter = builder.AddParameter("postgres-database")
             .WithDescription("Name of the initialized FeatBit PostgreSQL database.");
         var connection = builder.AddConnectionString(
-            "postgres",
+            "postgres-connection",
             ReferenceExpression.Create(
                 $"Host={host};Port={port};Username={user};Password={password};Database={databaseNameParameter}"));
 

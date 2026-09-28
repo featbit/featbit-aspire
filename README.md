@@ -100,6 +100,10 @@ Use the complete Redis connection string required by your service, including
 authentication and TLS settings where applicable. PostgreSQL and Redis use the same
 configuration keys for local runs and [Azure deployments](docs/deploy-to-azure-container-apps.md).
 
+In the Aspire dashboard, external connections appear in Resources as `postgres-connection`
+and, in Standard mode, `redis-connection`. The Redis connection string remains a
+secret named `redis` under Parameters.
+
 Open `http://localhost:8081` once the resources are ready. If the backend services
 started before the database schema was initialized, restart the API and Evaluation
 services from the Aspire dashboard after completing initialization.
