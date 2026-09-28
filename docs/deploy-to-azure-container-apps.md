@@ -2,6 +2,11 @@
 
 The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Container Apps. PostgreSQL, optional Redis, and an optional OpenTelemetry endpoint are external dependencies and must exist before deployment.
 
+Local runs and Azure deployments use the same external PostgreSQL and Redis
+configuration: PostgreSQL uses the `Parameters:postgres-*` values, and Standard mode
+also requires `ConnectionStrings:redis`. See [Run locally](../README.md#run-locally)
+for the development settings template.
+
 ## Prerequisites
 
 - .NET 10 SDK
@@ -11,24 +16,22 @@ The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Contai
 - An external PostgreSQL database
 - An external Redis service when deploying Standard mode
 
-Before deploying, run the matching FeatBit PostgreSQL initialization scripts with
-`psql` against your PostgreSQL server. For FeatBit 6.0.0-preview, use these
-[PostgreSQL initialization files](https://github.com/featbit/featbit/tree/6.0.0-preview/infra/postgresql/docker-entrypoint-initdb.d),
-including `v6.0.0.sql`, in filename order.
+Before deploying, create a PostgreSQL database with a name of your choice and manually
+initialize the FeatBit schema for the selected version using your database client.
+Set `Parameters:postgres-database` to that database name in the settings below. The
+default name is `featbit`; a different name is supported as long as it matches the
+database you prepared. The PostgreSQL server must allow the `pg_trgm` extension used
+by the FeatBit schema.
 
-The scripts create the `featbit` database and connect to it, so do not create it
-before running them. Set `postgres-database` to `featbit` in the settings below.
-For a custom database name, update the scripts' `CREATE DATABASE` and `\connect`
-statements first. The PostgreSQL server must allow the `pg_trgm` extension used by
-the initialization scripts.
+The AppHost connects to this existing database. It does not create the external
+database or download, rewrite, or run schema initialization or migration scripts.
+Later deployments reuse the database without running scripts automatically.
 
-Use a separate test resource group and a fresh database for this preview.
+Ensure PostgreSQL and, when enabled, Redis are reachable from the Container Apps
+environment. Use the complete Redis connection string required by your service,
+including authentication and TLS settings where applicable.
 
-For another release, replace `{version}` in this URL:
-
-```text
-https://github.com/featbit/featbit/tree/{version}/infra/postgresql/docker-entrypoint-initdb.d
-```
+Use a separate test resource group and database for this preview.
 
 ## Deploy
 

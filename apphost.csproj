@@ -12,7 +12,5 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Azure.AppContainers" Version="$(AspireHostingSDKVersion)" />
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="$(AspireHostingSDKVersion)" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="$(AspireHostingSDKVersion)" />
   </ItemGroup>
 </Project>

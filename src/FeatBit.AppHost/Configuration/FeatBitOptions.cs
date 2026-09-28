@@ -331,7 +331,7 @@ public sealed record FeatBitOptions(
                 !char.IsLetterOrDigit(character) && character is not ('.' or '-' or '_' or '+')))
         {
             throw new InvalidOperationException(
-                $"FeatBit version '{version}' is not a safe Git tag or cache directory name.");
+                $"FeatBit version '{version}' is invalid.");
         }
     }
 }

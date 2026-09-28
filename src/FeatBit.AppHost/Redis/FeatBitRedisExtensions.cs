@@ -4,8 +4,7 @@ using Aspire.Hosting.ApplicationModel;
 namespace FeatBit.AppHost;
 
 public sealed record FeatBitRedisResources(
-    ReferenceExpression? ConnectionString,
-    IResourceBuilder<RedisResource>? LocalResource);
+    ReferenceExpression? ConnectionString);
 
 public static class FeatBitRedisExtensions
 {
@@ -15,22 +14,10 @@ public static class FeatBitRedisExtensions
     {
         if (!options.UseRedis)
         {
-            return new FeatBitRedisResources(null, null);
+            return new FeatBitRedisResources(null);
         }
 
-        if (options.IsPublishMode)
-        {
-            var connection = builder.AddConnectionString("redis");
-            return new FeatBitRedisResources(
-                connection.Resource.ConnectionStringExpression,
-                null);
-        }
-
-        // Redis is derived cache data. Keeping it session-scoped avoids reusing
-        // FeatBit's persistent `redis-is-populated` marker after Redis is toggled.
-        var redis = builder.AddRedis("redis");
-        return new FeatBitRedisResources(
-            redis.Resource.ConnectionStringExpression,
-            redis);
+        var connection = builder.AddConnectionString("redis");
+        return new FeatBitRedisResources(connection.Resource.ConnectionStringExpression);
     }
 }

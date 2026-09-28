@@ -6,7 +6,7 @@ var options = FeatBitOptions.Load(builder);
 builder.AddFeatBitAzureEnvironment(options);
 var serviceConfiguration = builder.AddFeatBitServiceConfiguration(options);
 
-var postgres = await builder.AddFeatBitPostgresAsync(options);
+var postgres = builder.AddFeatBitPostgres();
 var redis = builder.AddFeatBitRedis(options);
 var telemetry = builder.AddFeatBitOpenTelemetry(options);
 var jwt = builder.AddFeatBitJwt(options);

@@ -53,7 +53,6 @@ public static class FeatBitServiceConfigurationExtensions
             "featbit-evaluation",
             "featbit-ui",
             "featbit",
-            "featbit-db",
             "postgres",
             "postgres-host",
             "postgres-port",
