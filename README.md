@@ -22,7 +22,7 @@ The version in `apphost.csproj` selects all three container images:
 
 ## Run locally
 
-Install the .NET 10 SDK, Aspire CLI 13.4.6 or later, and Docker or another compatible container runtime.
+Install the .NET 10 SDK, Aspire CLI 13.5.4 or later, and Docker or another compatible container runtime.
 
 Local runs start the FeatBit UI, API, and Evaluation containers and connect to an
 external PostgreSQL database. Standard mode also connects to external Redis. These

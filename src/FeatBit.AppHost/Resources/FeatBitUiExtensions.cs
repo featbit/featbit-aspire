@@ -12,8 +12,8 @@ public static class FeatBitUiExtensions
         IResourceBuilder<ContainerResource> api,
         IResourceBuilder<ContainerResource> evaluation)
     {
-        var apiUrl = GetBrowserUrl(api, options.IsPublishMode);
-        var evaluationUrl = GetBrowserUrl(evaluation, options.IsPublishMode);
+        var apiUrl = GetBrowserUrl(api, options.IsPublishMode, options.UiApiUrl);
+        var evaluationUrl = GetBrowserUrl(evaluation, options.IsPublishMode, options.UiEvaluationUrl);
 
         return builder.AddContainer("featbit-ui", "featbit/featbit-ui", options.Version)
             .WithEnvironment("API_URL", apiUrl)
@@ -35,9 +35,17 @@ public static class FeatBitUiExtensions
 
     private static ReferenceExpression GetBrowserUrl(
         IResourceBuilder<ContainerResource> resource,
-        bool isPublishMode) =>
-        isPublishMode
+        bool isPublishMode,
+        string? configuredUrl)
+    {
+        if (configuredUrl is not null)
+        {
+            return ReferenceExpression.Create($"{configuredUrl}");
+        }
+
+        return isPublishMode
             ? ReferenceExpression.Create($"{resource.GetEndpoint("http")}")
             : ReferenceExpression.Create(
                 $"http://localhost:{resource.GetEndpoint("http").Property(EndpointProperty.Port)}");
+    }
 }

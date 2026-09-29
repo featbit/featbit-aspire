@@ -43,6 +43,9 @@ public sealed record FeatBitOptions(
     FeatBitOpenTelemetryOptions OpenTelemetry,
     FeatBitAzureOptions Azure)
 {
+    public string? UiApiUrl { get; init; }
+    public string? UiEvaluationUrl { get; init; }
+
     private const int DefaultAzureUiMinReplicas = 1;
     private const int DefaultAzureUiMaxReplicas = 3;
     private const int DefaultAzureApiMinReplicas = 3;
@@ -79,7 +82,35 @@ public sealed record FeatBitOptions(
                 configuration.GetValue("FeatBit:OpenTelemetry:Enabled", true),
                 configuration.GetValue("FeatBit:OpenTelemetry:UseHeaders", false),
                 configuration.GetValue("FeatBit:OpenTelemetry:Insecure", false)),
-            azure);
+            azure)
+        {
+            UiApiUrl = LoadBrowserUrl(configuration, "FeatBit:Ui:ApiUrl"),
+            UiEvaluationUrl = LoadBrowserUrl(configuration, "FeatBit:Ui:EvaluationUrl")
+        };
+    }
+
+    private static string? LoadBrowserUrl(IConfiguration configuration, string configurationKey)
+    {
+        var value = configuration[configurationKey]?.Trim();
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+            !uri.IsWellFormedOriginalString() ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+            string.IsNullOrEmpty(uri.Host) ||
+            !string.IsNullOrEmpty(uri.UserInfo) ||
+            !string.IsNullOrEmpty(uri.Query) ||
+            !string.IsNullOrEmpty(uri.Fragment))
+        {
+            throw new InvalidOperationException(
+                $"{configurationKey} must be an absolute HTTP(S) URL without credentials, a query string, or a fragment.");
+        }
+
+        // The UI appends API paths beginning with '/', so avoid double slashes.
+        return uri.AbsoluteUri.TrimEnd('/');
     }
 
     private static FeatBitServiceOptions LoadService(

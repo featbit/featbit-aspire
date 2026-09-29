@@ -10,7 +10,7 @@ for the development settings template.
 ## Prerequisites
 
 - .NET 10 SDK
-- Aspire CLI 13.4.6 or later
+- Aspire CLI 13.5.4 or later
 - Azure CLI
 - An Azure subscription
 - An external PostgreSQL database
@@ -186,7 +186,52 @@ The list below was checked against the FeatBit 6.0.0-preview source. Native envi
 | `DISPLAY_EVALUATION_URL` | Optional Event/Streaming URL shown in Getting Started. |
 | `HOSTING_MODE` | UI hosting mode; defaults to `self-hosted`. |
 
-`API_URL` and `EVALUATION_URL` are generated from Aspire endpoints and must not be overridden. See the [FeatBit 6.0.0-preview UI environment reference](https://github.com/featbit/featbit/tree/6.0.0-preview/modules/front-end#environment-variables).
+The AppHost sets `API_URL` and `EVALUATION_URL` from Aspire endpoints by default.
+To make the browser use custom API and ELS domains, merge these fields into
+`appsettings.Production.json`, preserving the other UI settings:
+
+```json
+{
+  "FeatBit": {
+    "Ui": {
+      "ApiUrl": "https://api.featbit.io",
+      "EvaluationUrl": "https://eval.featbit.io"
+    }
+  }
+}
+```
+
+These domains are examples; replace them with the domains you control and bind to
+the corresponding services. Alternatively, configure the same values in the deployment terminal:
+
+```powershell
+$env:FeatBit__Ui__ApiUrl = "https://api.featbit.io"
+$env:FeatBit__Ui__EvaluationUrl = "https://eval.featbit.io"
+```
+
+Each URL is optional and independent. An omitted, empty, or whitespace value keeps
+Aspire's generated URL for that service. Explicit values apply in both local and
+publish modes; putting them only in `appsettings.Production.json` leaves ordinary
+local development using its generated localhost URLs. Use absolute HTTP(S) URLs
+without credentials, query strings, or fragments. Trailing slashes are removed.
+`EvaluationUrl` must use HTTP(S), not WS(S); the UI derives its streaming URL from it.
+Do not put `API_URL` or `EVALUATION_URL` under `Ui:Environment`.
+
+These settings configure the UI's requests only. They do not create DNS records,
+certificates, or ACA domain bindings. For the first deployment, you can set the final
+URLs in advance, deploy to obtain the generated ACA domain names, then configure DNS
+and HTTPS bindings for your custom domains on the corresponding Container Apps.
+Browser requests to these URLs will fail until DNS and HTTPS are ready. Once they are
+ready, refresh the UI; another UI deployment is not needed.
+
+The current AppHost does not declare domain bindings. Before subsequent deployments,
+include the domain/certificate bindings in your deployment configuration so those
+deployments preserve them; UI URL overrides alone do not do this.
+See [ACA custom domains and managed certificates](https://learn.microsoft.com/en-us/azure/container-apps/custom-domains-managed-certificates).
+
+`DISPLAY_API_URL` and `DISPLAY_EVALUATION_URL` only change the addresses shown in
+Getting Started; they do not replace these browser request URLs. See the
+[FeatBit 6.0.0-preview UI environment reference](https://github.com/featbit/featbit/tree/6.0.0-preview/modules/front-end#environment-variables).
 
 ### API authentication and SSO
 
@@ -244,7 +289,7 @@ See the [FeatBit 6.0.0-preview ELS environment reference](https://github.com/fea
 
 ### Values managed by Aspire
 
-The AppHost manages `VERSION`, UI endpoint URLs, backend database/queue/cache connections, OpenTelemetry variables, and API JWT signing material. Configure those through the top-level `FeatBit`, `Parameters`, and `ConnectionStrings` sections instead of service `Environment` entries.
+The AppHost manages `VERSION`, UI endpoint URLs, backend database/queue/cache connections, OpenTelemetry variables, and API JWT signing material. Configure those through the top-level `FeatBit`, `Parameters`, and `ConnectionStrings` sections instead of service `Environment` entries. For UI request URL overrides, use `FeatBit:Ui:ApiUrl` and `FeatBit:Ui:EvaluationUrl`.
 
 `SecretParameters` contains only a mapping to an Aspire parameter name, never the secret value. Parameter names may contain only lowercase letters, digits, and hyphens and must not exceed 63 characters. UI configuration is browser-visible, so `FeatBit:Ui:SecretParameters` is rejected.
 
