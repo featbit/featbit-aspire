@@ -160,7 +160,7 @@ After the Azure login context and every required value are configured, deploy wi
 aspire deploy --apphost ./apphost.csproj --environment Production --non-interactive
 ```
 
-For other configuration paths, replace `:` with `__`. For example, `FeatBit:Api:Environment:SSOEnabled` becomes `FeatBit__Api__Environment__SSOEnabled`.
+For other configuration paths, replace `:` with `__`. For example, `FeatBit:Authentication:SsoEnabled` becomes `FeatBit__Authentication__SsoEnabled`.
 
 That completes the deployment flow. The remaining sections are optional configuration references.
 
@@ -235,41 +235,33 @@ Getting Started; they do not replace these browser request URLs. See the
 
 ### API authentication and SSO
 
-Set `SSOEnabled` to `true` under `FeatBit:Api:Environment` to enable workspace OIDC SSO endpoints. The OIDC provider details remain workspace data configured through FeatBit after deployment.
+Both development and production templates include `FeatBit:Authentication` with
+optional GitHub, Google, and workspace OIDC SSO settings. Configure these in
+`appsettings.Development.json` for local runs or `appsettings.Production.json` for
+deployment.
 
-Google and GitHub social login are separate from workspace OIDC SSO. Configure the public client ID normally, but map the client secret to an Aspire secret parameter:
+For each social provider, set `Enabled=true` and its public `ClientId` under
+`FeatBit:Authentication:GitHub` or `FeatBit:Authentication:Google`. Before deployment,
+supply `Parameters__api_github_client_secret` and/or
+`Parameters__api_google_client_secret` in the deployment terminal or CI secret
+store. The AppHost maps these to API environment variables using ACA secrets;
+disabled providers require no secret parameters.
 
-```json
-{
-  "FeatBit": {
-    "Api": {
-      "Environment": {
-        "OAuthProviders__0__Name": "Google",
-        "OAuthProviders__0__ClientId": "<google-client-id>"
-      },
-      "SecretParameters": {
-        "OAuthProviders__0__ClientSecret": "api-google-client-secret"
-      }
-    }
-  }
-}
-```
+Register OAuth callbacks on the UI URL, for example
+`http://localhost:8081/en/login?social-logged-in=true` locally or
+`https://<ui-host>/en/login?social-logged-in=true` in production. Register `/zh/login`
+as well if using Chinese, and include any UI base path. OIDC SSO uses the same
+login paths with `?sso-logged-in=true` instead. The full callback must match the
+provider's registered redirect URI.
 
-Provide the secret in the terminal before deploying:
-
-PowerShell:
-
-```powershell
-$env:Parameters__api_google_client_secret = "<google-client-secret>"
-```
-
-Bash:
-
-```bash
-export Parameters__api_google_client_secret="<google-client-secret>"
-```
-
-Use index `1` for a second provider and set its name to `GitHub`. FeatBit 6.0.0-preview supports the case-sensitive names `Google` and `GitHub`.
+Set `FeatBit:Authentication:SsoEnabled=true` to enable the API's workspace OIDC SSO
+endpoints. The workspace must also have a license granting SSO and OIDC settings
+configured through FeatBit. The AppHost does not provision an identity provider or
+replace workspace settings. Existing native API authentication configuration is
+still supported. When migrating, remove `SSOEnabled` from `Api:Environment` or
+`Api:SecretParameters` before setting `Authentication:SsoEnabled`, and remove
+`OAuthProviders__*` entries from both sections before enabling a named provider.
+Mixed configuration is rejected to prevent conflicting settings.
 
 Other API settings include `Jwt__Issuer`, `Jwt__Audience`, `UsageTracking__FlushIntervalMs`, `UsageTracking__ChannelCapacity`, Redis population timeouts, `AllowedHosts`, and `Logging__...`. 
 

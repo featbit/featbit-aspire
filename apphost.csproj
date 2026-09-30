@@ -12,5 +12,6 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Azure.AppContainers" Version="13.6.0" />
+    <Compile Remove="tests/**/*.cs" />
   </ItemGroup>
 </Project>

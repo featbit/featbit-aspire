@@ -75,7 +75,9 @@ public sealed record FeatBitOptions(
                     ["DEMO_URL"] = "https://featbit-samples.vercel.app",
                     ["BASE_HREF"] = "/"
                 }),
-            LoadService(configuration, "Api"),
+            FeatBitAuthenticationConfiguration.Apply(
+                configuration,
+                LoadService(configuration, "Api")),
             LoadService(configuration, "Els"),
             jwt,
             new FeatBitOpenTelemetryOptions(

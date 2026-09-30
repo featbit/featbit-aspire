@@ -107,3 +107,14 @@ secret named `redis` under Parameters.
 Open `http://localhost:8081` once the resources are ready. If the backend services
 started before the database schema was initialized, restart the API and Evaluation
 services from the Aspire dashboard after completing initialization.
+
+## GitHub, Google, and SSO login
+
+Configure `FeatBit:Authentication` in the development or production settings file
+to enable GitHub OAuth, Google OAuth, or workspace OIDC SSO. The AppHost uses the
+same settings locally and in Azure, and passes OAuth client secrets through Aspire
+secret parameters. The templates leave these providers disabled until configured.
+
+See [API authentication and SSO](docs/deploy-to-azure-container-apps.md#api-authentication-and-sso)
+for configuration and callback URLs. SSO also requires a workspace license granting
+the feature.
