@@ -10,7 +10,7 @@ for the development settings template.
 ## Prerequisites
 
 - .NET 10 SDK
-- Aspire CLI 13.5.4 or later
+- Aspire CLI 13.6.0 or later
 - Azure CLI
 - An Azure subscription
 - An external PostgreSQL database

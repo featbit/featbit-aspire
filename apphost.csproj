@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.5.4">
+<Project Sdk="Aspire.AppHost.Sdk/13.6.0">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -11,6 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Azure.AppContainers" Version="13.5.4" />
+    <PackageReference Include="Aspire.Hosting.Azure.AppContainers" Version="13.6.0" />
   </ItemGroup>
 </Project>
