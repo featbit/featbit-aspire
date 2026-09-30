@@ -224,9 +224,33 @@ and HTTPS bindings for your custom domains on the corresponding Container Apps.
 Browser requests to these URLs will fail until DNS and HTTPS are ready. Once they are
 ready, refresh the UI; another UI deployment is not needed.
 
-The current AppHost does not declare domain bindings. Before subsequent deployments,
-include the domain/certificate bindings in your deployment configuration so those
-deployments preserve them; UI URL overrides alone do not do this.
+Before subsequent deployments, record all existing domain/certificate bindings in
+`FeatBit:Azure:Ui:CustomDomains`, `FeatBit:Azure:Api:CustomDomains`, and
+`FeatBit:Azure:Els:CustomDomains`. The AppHost reapplies those bindings on every
+deployment. UI URL overrides alone do not preserve bindings configured in the Portal.
+
+For example, merge this into the existing `FeatBit:Azure:Ui` settings, preserving
+the replica settings:
+
+```json
+{
+  "CustomDomains": [
+    {
+      "Name": "app.example.com",
+      "CertificateId": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.App/managedEnvironments/<environment-name>/managedCertificates/<certificate-name>"
+    }
+  ]
+}
+```
+
+Each entry requires the hostname and the full resource ID of its existing
+certificate in the same Container Apps environment. Both `managedCertificates`
+and uploaded `certificates` are supported. Get the IDs from the environment's
+certificates in the Portal or with
+`az containerapp env certificate list --name <environment-name> --resource-group <resource-group>`.
+Use an empty list only for apps that should have no custom domain bindings.
+This configuration reuses certificates; it does not create DNS records or issue
+certificates, and it has no effect on local container endpoints.
 See [ACA custom domains and managed certificates](https://learn.microsoft.com/en-us/azure/container-apps/custom-domains-managed-certificates).
 
 `DISPLAY_API_URL` and `DISPLAY_EVALUATION_URL` only change the addresses shown in

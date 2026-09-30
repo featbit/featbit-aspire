@@ -21,12 +21,15 @@ public sealed record FeatBitOpenTelemetryOptions(
     bool UseHeaders,
     bool Insecure);
 
-public sealed record FeatBitAzureScaleOptions(int MinReplicas, int MaxReplicas);
+public sealed record FeatBitAzureContainerAppOptions(
+    int MinReplicas,
+    int MaxReplicas,
+    IReadOnlyList<FeatBitAzureCustomDomainOptions> CustomDomains);
 
 public sealed record FeatBitAzureOptions(
-    FeatBitAzureScaleOptions Ui,
-    FeatBitAzureScaleOptions Api,
-    FeatBitAzureScaleOptions Els);
+    FeatBitAzureContainerAppOptions Ui,
+    FeatBitAzureContainerAppOptions Api,
+    FeatBitAzureContainerAppOptions Els);
 
 public sealed record FeatBitServiceOptions(
     IReadOnlyDictionary<string, string> Environment,
@@ -290,24 +293,24 @@ public sealed record FeatBitOptions(
     private static FeatBitAzureOptions LoadAzure(IConfiguration configuration)
     {
         return new FeatBitAzureOptions(
-            LoadAzureScale(
+            LoadAzureContainerApp(
                 configuration,
                 "Ui",
                 DefaultAzureUiMinReplicas,
                 DefaultAzureUiMaxReplicas),
-            LoadAzureScale(
+            LoadAzureContainerApp(
                 configuration,
                 "Api",
                 DefaultAzureApiMinReplicas,
                 DefaultAzureApiMaxReplicas),
-            LoadAzureScale(
+            LoadAzureContainerApp(
                 configuration,
                 "Els",
                 DefaultAzureElsMinReplicas,
                 DefaultAzureElsMaxReplicas));
     }
 
-    private static FeatBitAzureScaleOptions LoadAzureScale(
+    private static FeatBitAzureContainerAppOptions LoadAzureContainerApp(
         IConfiguration configuration,
         string serviceName,
         int defaultMinReplicas,
@@ -333,7 +336,11 @@ public sealed record FeatBitOptions(
                 $"{configurationPath}:MaxReplicas must be between 1 and 1000 and not less than MinReplicas.");
         }
 
-        return new FeatBitAzureScaleOptions(minReplicas, maxReplicas);
+        return new FeatBitAzureContainerAppOptions(
+            minReplicas,
+            maxReplicas,
+            FeatBitAzureCustomDomainOptions.Load(
+                configuration.GetSection($"{configurationPath}:CustomDomains")));
     }
 
     private static string GetRequiredFile(
