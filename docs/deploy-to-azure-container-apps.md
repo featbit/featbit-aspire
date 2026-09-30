@@ -224,33 +224,19 @@ and HTTPS bindings for your custom domains on the corresponding Container Apps.
 Browser requests to these URLs will fail until DNS and HTTPS are ready. Once they are
 ready, refresh the UI; another UI deployment is not needed.
 
-Before subsequent deployments, record all existing domain/certificate bindings in
-`FeatBit:Azure:Ui:CustomDomains`, `FeatBit:Azure:Api:CustomDomains`, and
-`FeatBit:Azure:Els:CustomDomains`. The AppHost reapplies those bindings on every
-deployment. UI URL overrides alone do not preserve bindings configured in the Portal.
+Subsequent `aspire deploy` runs automatically read each Container App's current
+custom domain bindings from Azure and include them in the update. Existing
+hostnames, certificates, and binding states are preserved without a local domain
+list. Manage domain additions, removals, and certificate changes in Azure as usual.
 
-For example, merge this into the existing `FeatBit:Azure:Ui` settings, preserving
-the replica settings:
+Each Container App update depends on its domain lookup succeeding. Authentication,
+network, and unexpected Azure errors stop that update instead of treating the
+bindings as empty. A confirmed missing app starts with no bindings on its first
+deployment. Local development does not query Azure.
 
-```json
-{
-  "CustomDomains": [
-    {
-      "Name": "app.example.com",
-      "CertificateId": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.App/managedEnvironments/<environment-name>/managedCertificates/<certificate-name>"
-    }
-  ]
-}
-```
-
-Each entry requires the hostname and the full resource ID of its existing
-certificate in the same Container Apps environment. Both `managedCertificates`
-and uploaded `certificates` are supported. Get the IDs from the environment's
-certificates in the Portal or with
-`az containerapp env certificate list --name <environment-name> --resource-group <resource-group>`.
-Use an empty list only for apps that should have no custom domain bindings.
-This configuration reuses certificates; it does not create DNS records or issue
-certificates, and it has no effect on local container endpoints.
+`aspire publish` remains offline: the generated templates require an
+`existingCustomDomains` array, with no empty default. If applying those templates
+outside `aspire deploy`, supply the current Azure bindings for every app.
 See [ACA custom domains and managed certificates](https://learn.microsoft.com/en-us/azure/container-apps/custom-domains-managed-certificates).
 
 `DISPLAY_API_URL` and `DISPLAY_EVALUATION_URL` only change the addresses shown in
