@@ -43,6 +43,7 @@ public sealed record FeatBitOptions(
     FeatBitOpenTelemetryOptions OpenTelemetry,
     FeatBitAzureOptions Azure)
 {
+    public bool UseLocalInfrastructure { get; init; }
     public string? UiApiUrl { get; init; }
     public string? UiEvaluationUrl { get; init; }
 
@@ -60,13 +61,15 @@ public sealed record FeatBitOptions(
 
         var configuration = builder.Configuration;
         var isPublishMode = builder.ExecutionContext.IsPublishMode;
+        var useLocalInfrastructure = !isPublishMode &&
+            configuration.GetValue("FeatBit:UseLocalInfrastructure", true);
         var jwt = LoadJwt(configuration, isPublishMode);
         var azure = LoadAzure(configuration);
 
         return new FeatBitOptions(
             version,
             isPublishMode,
-            configuration.GetValue("FeatBit:UseRedis", false),
+            configuration.GetValue("FeatBit:UseRedis", useLocalInfrastructure),
             LoadService(
                 configuration,
                 "Ui",
@@ -86,6 +89,7 @@ public sealed record FeatBitOptions(
                 configuration.GetValue("FeatBit:OpenTelemetry:Insecure", false)),
             azure)
         {
+            UseLocalInfrastructure = useLocalInfrastructure,
             UiApiUrl = LoadBrowserUrl(configuration, "FeatBit:Ui:ApiUrl"),
             UiEvaluationUrl = LoadBrowserUrl(configuration, "FeatBit:Ui:EvaluationUrl")
         };

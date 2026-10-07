@@ -2,10 +2,11 @@
 
 The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Container Apps. PostgreSQL, optional Redis, and an optional OpenTelemetry endpoint are external dependencies and must exist before deployment.
 
-Local runs and Azure deployments use the same external PostgreSQL and Redis
-configuration: PostgreSQL uses the `Parameters:postgres-*` values, and Standard mode
-also requires `ConnectionStrings:redis`. See [Run locally](../README.md#run-locally)
-for the development settings template.
+Local runs use Docker PostgreSQL and Redis by default. Azure publish/deploy always
+uses external dependencies: PostgreSQL uses the `Parameters:postgres-*` values,
+and Standard mode also requires `ConnectionStrings:redis`. To use these external
+services locally, set `FeatBit:UseLocalInfrastructure=false`. See
+[Run locally](../README.md#run-locally) for the development settings template.
 
 ## Prerequisites
 
@@ -30,8 +31,6 @@ Later deployments reuse the database without running scripts automatically.
 Ensure PostgreSQL and, when enabled, Redis are reachable from the Container Apps
 environment. Use the complete Redis connection string required by your service,
 including authentication and TLS settings where applicable.
-
-Use a separate test resource group and database for this preview.
 
 ## Deploy
 
@@ -112,7 +111,7 @@ export Parameters__jwt_key="<stable-random-key-at-least-64-characters>"
 export ConnectionStrings__redis="<redis-connection-string>"
 ```
 
-Use the same stable JWT key for every deployment. Changing it invalidates existing access tokens. See the [FeatBit v6.0.0-preview JWT configuration](https://github.com/featbit/featbit/tree/6.0.0-preview/modules/back-end#jwt) if you need RS256 or ES256 instead of the default HS256.
+Use the same stable JWT key for every deployment. Changing it invalidates existing access tokens. See the [FeatBit v6.0.0 JWT configuration](https://github.com/featbit/featbit/tree/6.0.0/modules/back-end#jwt) if you need RS256 or ES256 instead of the default HS256.
 
 Aspire parameter names use hyphens, but their environment variable form uses underscores. For example, `postgres-database` becomes `Parameters__postgres_database`, `postgres-password` becomes `Parameters__postgres_password`, and `jwt-key` becomes `Parameters__jwt_key`.
 
@@ -174,7 +173,7 @@ Service-specific non-secret values go in these sections of `appsettings.Producti
 - `FeatBit:Api:Environment`
 - `FeatBit:Els:Environment`
 
-The list below was checked against the FeatBit 6.0.0-preview source. Native environment variable names such as `Cors__AllowedOrigins` can be added to the corresponding `Environment` section without changing the AppHost code.
+The list below was checked against the FeatBit 6.0.0 source. Native environment variable names such as `Cors__AllowedOrigins` can be added to the corresponding `Environment` section without changing the AppHost code.
 
 ### UI
 
@@ -241,7 +240,7 @@ See [ACA custom domains and managed certificates](https://learn.microsoft.com/en
 
 `DISPLAY_API_URL` and `DISPLAY_EVALUATION_URL` only change the addresses shown in
 Getting Started; they do not replace these browser request URLs. See the
-[FeatBit 6.0.0-preview UI environment reference](https://github.com/featbit/featbit/tree/6.0.0-preview/modules/front-end#environment-variables).
+[FeatBit 6.0.0 UI environment reference](https://github.com/featbit/featbit/tree/6.0.0/modules/front-end#environment-variables).
 
 ### API authentication and SSO
 
@@ -287,7 +286,7 @@ Use semicolons to separate explicit CORS values. `Cors__AllowCredentials=true` c
 
 `RateLimiting__Type` accepts `FixedWindow`, `SlidingWindow`, or `TokenBucket`. Distributed rate limiting requires both `FeatBit:UseRedis=true` and `RateLimiting__Distributed=true`; otherwise every ELS replica applies its own limits. Per-endpoint overrides use `RateLimiting__Endpoints__<Key>__<Property>`.
 
-See the [FeatBit 6.0.0-preview ELS environment reference](https://github.com/featbit/featbit/tree/6.0.0-preview/modules/evaluation-server#environment-variables).
+See the [FeatBit 6.0.0 ELS environment reference](https://github.com/featbit/featbit/tree/6.0.0/modules/evaluation-server#environment-variables).
 
 ### Values managed by Aspire
 

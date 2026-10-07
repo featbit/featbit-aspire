@@ -5,13 +5,46 @@ using Microsoft.Extensions.Configuration;
 namespace FeatBit.AppHost;
 
 public sealed record FeatBitPostgresResources(
-    ReferenceExpression ConnectionString);
+    ReferenceExpression ConnectionString)
+{
+    public IResourceBuilder<PostgresDatabaseResource>? Database { get; init; }
+}
 
 public static class FeatBitPostgresExtensions
 {
     public static FeatBitPostgresResources AddFeatBitPostgres(
-        this IDistributedApplicationBuilder builder)
+        this IDistributedApplicationBuilder builder,
+        FeatBitOptions options)
     {
+        if (!options.IsPublishMode && options.UseLocalInfrastructure)
+        {
+            var initDirectory = Path.Combine(
+                builder.AppHostDirectory,
+                "infra", "postgresql", options.Version, "docker-entrypoint-initdb.d");
+            if (!Directory.Exists(initDirectory))
+            {
+                throw new DirectoryNotFoundException(
+                    $"Local PostgreSQL initialization scripts for FeatBit {options.Version} " +
+                    $"were not found at '{initDirectory}'.");
+            }
+
+            // Use separate local credentials and the database name created by the
+            // upstream scripts, regardless of configured external PostgreSQL values.
+#pragma warning disable ASPIRECERTIFICATES001 // Local development uses plain PostgreSQL TCP.
+            var postgres = builder.AddPostgres("local-postgres")
+                .WithImageTag("15.10")
+                .WithoutHttpsCertificate()
+                .WithDataVolume()
+                .WithInitFiles(initDirectory)
+                .WithLifetime(ContainerLifetime.Persistent);
+#pragma warning restore ASPIRECERTIFICATES001
+            var database = postgres.AddDatabase("featbit-db", databaseName: "featbit");
+            return new FeatBitPostgresResources(database.Resource.ConnectionStringExpression)
+            {
+                Database = database
+            };
+        }
+
         NormalizeParameterConfiguration(builder.Configuration);
         var databaseName = builder.Configuration["Parameters:postgres-database"];
         if (databaseName is not null && string.IsNullOrWhiteSpace(databaseName))
