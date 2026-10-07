@@ -4,8 +4,10 @@ using Aspire.Hosting.ApplicationModel;
 namespace FeatBit.AppHost;
 
 public sealed record FeatBitRedisResources(
-    ReferenceExpression? ConnectionString,
-    IResourceBuilder<RedisResource>? LocalResource);
+    ReferenceExpression? ConnectionString)
+{
+    public IResourceBuilder<RedisResource>? Container { get; init; }
+}
 
 public static class FeatBitRedisExtensions
 {
@@ -15,22 +17,29 @@ public static class FeatBitRedisExtensions
     {
         if (!options.UseRedis)
         {
-            return new FeatBitRedisResources(null, null);
+            return new FeatBitRedisResources(null);
         }
 
-        if (options.IsPublishMode)
+        if (!options.IsPublishMode && options.UseLocalInfrastructure)
         {
-            var connection = builder.AddConnectionString("redis");
-            return new FeatBitRedisResources(
-                connection.Resource.ConnectionStringExpression,
-                null);
+#pragma warning disable ASPIRECERTIFICATES001 // Local development uses plain Redis TCP.
+            var redis = builder.AddRedis("local-redis")
+                .WithoutHttpsCertificate()
+                .WithDataVolume()
+                .WithLifetime(ContainerLifetime.Persistent);
+#pragma warning restore ASPIRECERTIFICATES001
+            return new FeatBitRedisResources(redis.Resource.ConnectionStringExpression)
+            {
+                Container = redis
+            };
         }
 
-        // Redis is derived cache data. Keeping it session-scoped avoids reusing
-        // FeatBit's persistent `redis-is-populated` marker after Redis is toggled.
-        var redis = builder.AddRedis("redis");
-        return new FeatBitRedisResources(
-            redis.Resource.ConnectionStringExpression,
-            redis);
+        var connectionString = builder.AddConnectionString("redis");
+        // Keep the existing secret parameter and expose the external connection
+        // as a resource in the dashboard, matching the PostgreSQL connection.
+        var connection = builder.AddConnectionString(
+            "redis-connection",
+            connectionString.Resource.ConnectionStringExpression);
+        return new FeatBitRedisResources(connection.Resource.ConnectionStringExpression);
     }
 }

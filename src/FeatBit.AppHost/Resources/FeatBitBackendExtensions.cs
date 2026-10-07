@@ -37,19 +37,19 @@ public static class FeatBitBackendExtensions
                 serviceConfiguration,
                 options.Version);
 
-        if (postgres.LocalDatabase is not null)
+        if (postgres.Database is not null)
         {
-            resource.WaitFor(postgres.LocalDatabase);
+            resource.WaitFor(postgres.Database);
+        }
+
+        if (redis.Container is not null)
+        {
+            resource.WaitFor(redis.Container);
         }
 
         if (redis.ConnectionString is not null)
         {
             resource.WithEnvironment("Redis__ConnectionString", redis.ConnectionString);
-        }
-
-        if (redis.LocalResource is not null)
-        {
-            resource.WaitFor(redis.LocalResource);
         }
 
         return resource;

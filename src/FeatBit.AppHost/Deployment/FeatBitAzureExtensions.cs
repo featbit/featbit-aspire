@@ -28,14 +28,16 @@ public static class FeatBitAzureExtensions
             return resource;
         }
 
-        return resource.PublishAsAzureContainerApp((infrastructure, app) =>
+        return resource.WithPreservedAzureCustomDomains().PublishAsAzureContainerApp((infrastructure, app) =>
         {
+            app.Name = resource.Resource.Name;
             app.Template.Scale = new ContainerAppScale
             {
                 MinReplicas = scale.MinReplicas,
                 MaxReplicas = scale.MaxReplicas
             };
             configure?.Invoke(infrastructure, app);
+            FeatBitAzureCustomDomains.ConfigureInfrastructure(infrastructure, app);
         });
     }
 }

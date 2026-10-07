@@ -1,59 +1,109 @@
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
+using Microsoft.Extensions.Configuration;
 
 namespace FeatBit.AppHost;
 
 public sealed record FeatBitPostgresResources(
-    ReferenceExpression ConnectionString,
-    IResourceBuilder<PostgresDatabaseResource>? LocalDatabase);
+    ReferenceExpression ConnectionString)
+{
+    public IResourceBuilder<PostgresDatabaseResource>? Database { get; init; }
+}
 
 public static class FeatBitPostgresExtensions
 {
-    public static async Task<FeatBitPostgresResources> AddFeatBitPostgresAsync(
+    public static FeatBitPostgresResources AddFeatBitPostgres(
         this IDistributedApplicationBuilder builder,
         FeatBitOptions options)
     {
-        if (options.IsPublishMode)
+        if (!options.IsPublishMode && options.UseLocalInfrastructure)
         {
-            var host = builder.AddParameter("postgres-host")
-                .WithDescription("PostgreSQL server host name used by the Azure deployment.");
-            var port = builder.AddParameter("postgres-port", "5432", publishValueAsDefault: true)
-                .WithDescription("PostgreSQL server port.");
-            var user = builder.AddParameter("postgres-user")
-                .WithDescription("PostgreSQL login user.");
-            var password = builder.AddParameter("postgres-password", secret: true)
-                .WithDescription("PostgreSQL login password.");
-            var databaseNameParameter = builder.AddParameter("postgres-database")
-                .WithDescription("Name of the initialized FeatBit PostgreSQL database.");
-            var connection = builder.AddConnectionString(
-                "postgres",
-                ReferenceExpression.Create(
-                    $"Host={host};Port={port};Username={user};Password={password};Database={databaseNameParameter}"));
+            var initDirectory = Path.Combine(
+                builder.AppHostDirectory,
+                "infra", "postgresql", options.Version, "docker-entrypoint-initdb.d");
+            if (!Directory.Exists(initDirectory))
+            {
+                throw new DirectoryNotFoundException(
+                    $"Local PostgreSQL initialization scripts for FeatBit {options.Version} " +
+                    $"were not found at '{initDirectory}'.");
+            }
 
-            return new FeatBitPostgresResources(
-                connection.Resource.ConnectionStringExpression,
-                null);
+            // Use separate local credentials and the database name created by the
+            // upstream scripts, regardless of configured external PostgreSQL values.
+#pragma warning disable ASPIRECERTIFICATES001 // Local development uses plain PostgreSQL TCP.
+            var postgres = builder.AddPostgres("local-postgres")
+                .WithImageTag("15.10")
+                .WithoutHttpsCertificate()
+                .WithDataVolume()
+                .WithInitFiles(initDirectory)
+                .WithLifetime(ContainerLifetime.Persistent);
+#pragma warning restore ASPIRECERTIFICATES001
+            var database = postgres.AddDatabase("featbit-db", databaseName: "featbit");
+            return new FeatBitPostgresResources(database.Resource.ConnectionStringExpression)
+            {
+                Database = database
+            };
         }
 
-        var initFiles = await PostgresInitFilesProvider.GetAsync(
-            builder.AppHostDirectory,
-            options.Version);
+        NormalizeParameterConfiguration(builder.Configuration);
         var databaseName = builder.Configuration["Parameters:postgres-database"];
-        if (string.IsNullOrWhiteSpace(databaseName))
+        if (databaseName is not null && string.IsNullOrWhiteSpace(databaseName))
         {
             throw new InvalidOperationException(
-                "Parameters:postgres-database must specify the local FeatBit PostgreSQL database name.");
+                "Parameters:postgres-database must specify a non-empty PostgreSQL database name.");
         }
 
-        var postgres = builder.AddPostgres("postgres")
-            .WithImageTag("15.10")
-            .WithDataVolume("featbit-postgres-data")
-            .WithInitFiles(initFiles)
-            .WithLifetime(ContainerLifetime.Persistent);
-        var database = postgres.AddDatabase("featbit-db", databaseName);
+        var host = builder.AddParameter("postgres-host")
+            .WithDescription("External PostgreSQL server host name.");
+        var port = builder.AddParameter("postgres-port")
+            .WithDescription("PostgreSQL server port.");
+        var user = builder.AddParameter("postgres-user")
+            .WithDescription("PostgreSQL login user.");
+        var password = builder.AddParameter("postgres-password", secret: true)
+            .WithDescription("PostgreSQL login password.");
+        var databaseNameParameter = builder.AddParameter("postgres-database")
+            .WithDescription("Name of the initialized FeatBit PostgreSQL database.");
+        var connection = builder.AddConnectionString(
+            "postgres-connection",
+            ReferenceExpression.Create(
+                $"Host={host};Port={port};Username={user};Password={password};Database={databaseNameParameter}"));
 
-        return new FeatBitPostgresResources(
-            database.Resource.ConnectionStringExpression,
-            database);
+        return new FeatBitPostgresResources(connection.Resource.ConnectionStringExpression);
+    }
+
+    private static void NormalizeParameterConfiguration(ConfigurationManager configuration)
+    {
+        var values = new Dictionary<string, string?>();
+        foreach (var name in new[] { "host", "port", "user", "password", "database" })
+        {
+            var key = $"Parameters:postgres-{name}";
+            var value = GetConfiguredParameter(configuration, key);
+            if (value is not null)
+            {
+                values[key] = value;
+            }
+        }
+
+        configuration.AddInMemoryCollection(values);
+    }
+
+    private static string? GetConfiguredParameter(IConfigurationRoot configuration, string key)
+    {
+        // Resolve both spellings by provider priority so an environment override
+        // is not hidden by the hyphenated key in appsettings.json.
+        foreach (var provider in configuration.Providers.Reverse())
+        {
+            if (provider.TryGet(key, out var value) && value is not null)
+            {
+                return value;
+            }
+
+            if (provider.TryGet(key.Replace('-', '_'), out value) && value is not null)
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 }
