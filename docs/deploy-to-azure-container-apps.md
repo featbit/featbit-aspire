@@ -244,6 +244,15 @@ Getting Started; they do not replace these browser request URLs. See the
 
 ### API authentication and SSO
 
+ACA deployments default the UI's `HOSTING_MODE` to `saas`, so the initial page is
+**Sign in to your workspace** with email and password fields. Enabling SSO keeps
+the **Sign in with SSO** button on that page. This UI setting does not enable or
+disable API authentication providers.
+
+Override the UI mode through `FeatBit:Ui:Environment:HOSTING_MODE` if needed.
+The upstream `self-hosted` mode opens the SSO page first when SSO is enabled;
+local runs retain that upstream default.
+
 Both development and production templates include `FeatBit:Authentication` with
 optional GitHub, Google, and workspace OIDC SSO settings. Configure these in
 `appsettings.Development.json` for local runs or `appsettings.Production.json` for

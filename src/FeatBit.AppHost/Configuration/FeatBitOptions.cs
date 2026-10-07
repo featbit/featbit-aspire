@@ -76,7 +76,8 @@ public sealed record FeatBitOptions(
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["DEMO_URL"] = "https://featbit-samples.vercel.app",
-                    ["BASE_HREF"] = "/"
+                    ["BASE_HREF"] = "/",
+                    ["HOSTING_MODE"] = isPublishMode ? "saas" : "self-hosted"
                 }),
             FeatBitAuthenticationConfiguration.Apply(
                 configuration,
