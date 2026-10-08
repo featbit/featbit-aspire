@@ -8,6 +8,7 @@ using Azure.Core;
 using Azure.Provisioning;
 using Azure.Provisioning.AppContainers;
 using Azure.ResourceManager;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -44,14 +45,12 @@ public static class FeatBitAzureCustomDomains
                 var target = GetDeploymentTarget(resource.Resource);
                 var state = await context.Services.GetRequiredService<IDeploymentStateManager>()
                     .AcquireCurrentSectionAsync("Azure", context.CancellationToken);
-                var subscription = GetRequiredSetting(state.Data, "SubscriptionId");
-                var resourceGroup = GetRequiredSetting(state.Data, "ResourceGroup");
+                var configuration = context.Services.GetRequiredService<IConfiguration>();
+                var id = ResolveContainerAppId(state.Data, configuration, resource.Resource.Name);
                 var credential = context.Services.GetRequiredService<ITokenCredentialProvider>().TokenCredential;
                 var clientOptions = new ArmClientOptions();
                 clientOptions.SetApiVersion(new ResourceType("Microsoft.App/containerApps"), "2025-01-01");
-                var client = new ArmClient(credential, subscription, clientOptions);
-                var id = new ResourceIdentifier(
-                    $"/subscriptions/{subscription}/resourceGroups/{resourceGroup}/providers/Microsoft.App/containerApps/{resource.Resource.Name}");
+                var client = new ArmClient(credential, id.SubscriptionId, clientOptions);
 
                 var domains = await ReadAsync(async cancellationToken =>
                 {
@@ -113,8 +112,33 @@ public static class FeatBitAzureCustomDomains
         resource.GetDeploymentTargetAnnotation()?.DeploymentTarget as AzureBicepResource
         ?? throw new InvalidOperationException($"The Azure deployment target for '{resource.Name}' is not available.");
 
-    private static string GetRequiredSetting(JsonObject state, string name) =>
-        state[name]?.GetValue<string>() is { Length: > 0 } value ? value
-        : throw new InvalidOperationException($"Azure deployment target is missing {name}; custom domain lookup cannot proceed.");
+    public static ResourceIdentifier ResolveContainerAppId(
+        JsonObject state,
+        IConfiguration configuration,
+        string appName)
+    {
+        var subscription = state["SubscriptionId"]?.GetValue<string>();
+        var resourceGroup = state["ResourceGroup"]?.GetValue<string>();
+
+        // --clear-cache skips state saves, including the provisioning target.
+        // Use the effective AppHost configuration when no target was saved.
+        // Keep each subscription/resource-group pair from the same source.
+        if (string.IsNullOrWhiteSpace(subscription) && string.IsNullOrWhiteSpace(resourceGroup))
+        {
+            subscription = configuration["Azure:SubscriptionId"];
+            resourceGroup = configuration["Azure:ResourceGroup"];
+        }
+
+        return new ResourceIdentifier(
+            $"/subscriptions/{GetRequiredSetting(subscription, "SubscriptionId")}" +
+            $"/resourceGroups/{GetRequiredSetting(resourceGroup, "ResourceGroup")}" +
+            $"/providers/Microsoft.App/containerApps/{appName}");
+    }
+
+    private static string GetRequiredSetting(string? value, string name) =>
+        !string.IsNullOrWhiteSpace(value) ? value
+        : throw new InvalidOperationException(
+            $"Azure deployment target is missing {name}; set Azure:{name} in AppHost configuration " +
+            "when deploying with --clear-cache. Custom domain lookup cannot proceed.");
 }
 #pragma warning restore ASPIREPIPELINES001, ASPIREPIPELINES002

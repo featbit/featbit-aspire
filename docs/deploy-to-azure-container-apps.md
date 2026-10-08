@@ -28,6 +28,16 @@ The AppHost connects to this existing database. It does not create the external
 database or download, rewrite, or run schema initialization or migration scripts.
 Later deployments reuse the database without running scripts automatically.
 
+For an existing database, apply only the migrations newer than its current
+schema. A database with the v5.4.1 schema needs
+[`v6.0.0.sql`](../infra/postgresql/6.0.0/docker-entrypoint-initdb.d/v6.0.0.sql)
+before running FeatBit v6. The bundled scripts start with `\connect featbit`;
+when using a different database name, change that line in a working copy or
+remove it when running SQL through a client already connected to the target.
+The v6 script preserves the old `events`, `experiments`, and `experiment_metrics`
+tables with `_legacy` names and creates the new experiment schema. It does not
+copy those legacy experiments into the v6 tables.
+
 Ensure PostgreSQL and, when enabled, Redis are reachable from the Container Apps
 environment. Use the complete Redis connection string required by your service,
 including authentication and TLS settings where applicable.
@@ -131,6 +141,27 @@ aspire deploy --apphost ./apphost.csproj --environment Production
 ```
 
 `--environment Production` loads `appsettings.Production.json`. Environment variables override values from the file.
+
+PostgreSQL parameters use the current settings file and environment variables
+before cached deployment inputs. After editing `appsettings.Production.json`,
+run the same `aspire deploy` command in the terminal with the required secret
+environment variables set. A cached PostgreSQL password is reused only when no
+current value is supplied. Other parameters retain Aspire's normal caching
+behavior.
+
+To bypass all deployment caching, add `--clear-cache`. This clears the local
+deployment cache and does not save state for that deployment. Set
+`Azure:SubscriptionId`, `Azure:ResourceGroup`, and `Azure:Location` explicitly in
+the production settings or environment variables so the same Azure resources
+are updated. Existing domain and certificate bindings are read from Azure and
+preserved even when no deployment state is saved.
+
+Each applied Container App template generates a new revision so database,
+Redis, JWT, and OAuth secret changes are loaded by new containers. Unchanged
+applications can still be skipped by the deployment cache. Existing domains and
+certificate bindings are preserved during the update. ACA secret updates made
+directly in Azure, outside this AppHost deployment, still require a new revision
+or a restart of the active revision.
 
 Run the first deployment in an interactive terminal so Azure tenant selection or missing parameter prompts can be handled. Do not pipe the command through another process because that can disable interactive prompts.
 

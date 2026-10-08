@@ -1,6 +1,7 @@
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 
 namespace FeatBit.AppHost;
 
@@ -45,7 +46,7 @@ public static class FeatBitPostgresExtensions
             };
         }
 
-        NormalizeParameterConfiguration(builder.Configuration);
+        NormalizeParameterConfiguration(builder.Configuration, options.IsPublishMode);
         var databaseName = builder.Configuration["Parameters:postgres-database"];
         if (databaseName is not null && string.IsNullOrWhiteSpace(databaseName))
         {
@@ -71,13 +72,13 @@ public static class FeatBitPostgresExtensions
         return new FeatBitPostgresResources(connection.Resource.ConnectionStringExpression);
     }
 
-    private static void NormalizeParameterConfiguration(ConfigurationManager configuration)
+    private static void NormalizeParameterConfiguration(ConfigurationManager configuration, bool isPublishMode)
     {
         var values = new Dictionary<string, string?>();
         foreach (var name in new[] { "host", "port", "user", "password", "database" })
         {
             var key = $"Parameters:postgres-{name}";
-            var value = GetConfiguredParameter(configuration, key);
+            var value = GetConfiguredParameter(configuration, key, isPublishMode);
             if (value is not null)
             {
                 values[key] = value;
@@ -87,11 +88,19 @@ public static class FeatBitPostgresExtensions
         configuration.AddInMemoryCollection(values);
     }
 
-    private static string? GetConfiguredParameter(IConfigurationRoot configuration, string key)
+    private static string? GetConfiguredParameter(IConfigurationRoot configuration, string key, bool isPublishMode)
     {
         // Resolve both spellings by provider priority so an environment override
         // is not hidden by the hyphenated key in appsettings.json.
-        foreach (var provider in configuration.Providers.Reverse())
+        // Aspire 13.6 appends cached deployment inputs through AddJsonStream.
+        // Keep them as fallbacks so current files and environment variables win.
+        var providers = configuration.Providers.Reverse();
+        if (isPublishMode)
+        {
+            providers = providers.OrderBy(provider => provider is JsonStreamConfigurationProvider);
+        }
+
+        foreach (var provider in providers)
         {
             if (provider.TryGet(key, out var value) && value is not null)
             {

@@ -5,6 +5,7 @@ using Aspire.Hosting.Azure;
 using Aspire.Hosting.Pipelines;
 using Azure;
 using Azure.Provisioning.AppContainers;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -13,6 +14,9 @@ namespace FeatBit.AppHost.Tests;
 #pragma warning disable ASPIREPIPELINES001
 public sealed class AzureCustomDomainPreservationTests
 {
+    private const string ConfiguredSubscription = "11111111-1111-1111-1111-111111111111";
+    private const string SelectedSubscription = "22222222-2222-2222-2222-222222222222";
+
     [Fact]
     public async Task PreservesAllAzureBindingsIncludingPendingAndWildcardDomains()
     {
@@ -138,6 +142,73 @@ public sealed class AzureCustomDomainPreservationTests
         Assert.Contains($"preserve-custom-domains-{name}", provision.DependsOnSteps);
         Assert.Empty(unrelated.DependsOnSteps);
     }
+
+    [Theory]
+    [InlineData("featbit-ui")]
+    [InlineData("featbit-api")]
+    [InlineData("featbit-evaluation")]
+    public void ClearCacheUsesConfiguredTargetWhenNoAzureStateWasSaved(string name)
+    {
+        var configuration = AzureConfiguration(ConfiguredSubscription, "configured-group");
+        var id = FeatBitAzureCustomDomains.ResolveContainerAppId(new JsonObject(), configuration, name);
+
+        Assert.Equal(ConfiguredSubscription, id.SubscriptionId);
+        Assert.Equal("configured-group", id.ResourceGroupName);
+        Assert.Equal(name, id.Name);
+        Assert.Equal("Microsoft.App/containerApps", id.ResourceType.ToString());
+    }
+
+    [Fact]
+    public void SavedProvisioningTargetTakesPrecedenceOverConfiguredDefaults()
+    {
+        var state = new JsonObject
+        {
+            ["SubscriptionId"] = SelectedSubscription,
+            ["ResourceGroup"] = "selected-group"
+        };
+        var configuration = AzureConfiguration(ConfiguredSubscription, "configured-group");
+        var id = FeatBitAzureCustomDomains.ResolveContainerAppId(state, configuration, "featbit-ui");
+
+        Assert.Equal(SelectedSubscription, id.SubscriptionId);
+        Assert.Equal("selected-group", id.ResourceGroupName);
+    }
+
+    [Theory]
+    [InlineData("SubscriptionId", "ResourceGroup")]
+    [InlineData("ResourceGroup", "SubscriptionId")]
+    public void PartialStateDoesNotCombineDifferentDeploymentTargets(string present, string missing)
+    {
+        var state = new JsonObject { [present] = "selected-value" };
+        var configuration = AzureConfiguration(ConfiguredSubscription, "configured-group");
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            FeatBitAzureCustomDomains.ResolveContainerAppId(state, configuration, "featbit-ui"));
+
+        Assert.Contains($"missing {missing}", error.Message);
+    }
+
+    [Theory]
+    [InlineData(null, "configured-group", "SubscriptionId")]
+    [InlineData(" ", "configured-group", "SubscriptionId")]
+    [InlineData("configured-subscription", null, "ResourceGroup")]
+    [InlineData("configured-subscription", " ", "ResourceGroup")]
+    public void MissingClearCacheTargetStopsDomainLookup(string? subscription, string? group, string missing)
+    {
+        var configuration = AzureConfiguration(subscription, group);
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            FeatBitAzureCustomDomains.ResolveContainerAppId(new JsonObject(), configuration, "featbit-ui"));
+
+        Assert.Contains($"Azure:{missing}", error.Message);
+        Assert.Contains("--clear-cache", error.Message);
+    }
+
+    private static IConfiguration AzureConfiguration(string? subscription, string? group) =>
+        new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Azure:SubscriptionId"] = subscription,
+            ["Azure:ResourceGroup"] = group
+        }).Build();
 
     private static Task<JsonArray> Read(string json) =>
         FeatBitAzureCustomDomains.ReadAsync(_ => Task.FromResult<BinaryData?>(BinaryData.FromString(json)));
