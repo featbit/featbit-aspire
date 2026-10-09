@@ -11,7 +11,7 @@ public sealed class OpenTelemetryConfigurationTests
     [Theory]
     [InlineData(FeatBitService.Api, "featbit-api", 5000, "featbit-api")]
     [InlineData(FeatBitService.Els, "featbit-evaluation", 5100, "featbit-els")]
-    public async Task AzureDashboardEnablesAllSignalsWithoutOverridingThePlatformEndpoint(
+    public async Task AzureDashboardEnablesAllSignalsUsingThePlatformEndpointAtStartup(
         FeatBitService service, string name, int port, string serviceName)
     {
         var builder = CreateBuilder(new()
@@ -44,6 +44,15 @@ public sealed class OpenTelemetryConfigurationTests
         Assert.Null(telemetry.Endpoint);
         Assert.Null(telemetry.Headers);
         Assert.DoesNotContain(builder.Resources, resource => resource.Name.StartsWith("otel-exporter-"));
+        Assert.Equal("/bin/sh", backend.Resource.Entrypoint);
+        var arguments = await GetArguments(builder, backend.Resource);
+        Assert.Equal(2, arguments.Count);
+        Assert.Equal("-c", arguments[0]);
+        var startupScript = Assert.IsType<string>(arguments[1]);
+        Assert.DoesNotContain("\r", startupScript);
+        Assert.Contains("CONTAINERAPP_OTEL_TRACING_GRPC_ENDPOINT", startupScript);
+        Assert.Contains("export OTEL_EXPORTER_OTLP_ENDPOINT=", startupScript);
+        Assert.Contains("exec ./start.sh", startupScript);
     }
 
     [Theory]
@@ -73,6 +82,8 @@ public sealed class OpenTelemetryConfigurationTests
         Assert.Null(telemetry.Headers);
         Assert.DoesNotContain(builder.Resources, resource => resource.Name.StartsWith("otel-exporter-"));
         Assert.Empty(backend.Resource.Annotations.OfType<OtlpExporterAnnotation>());
+        Assert.Null(backend.Resource.Entrypoint);
+        Assert.Empty(await GetArguments(builder, backend.Resource));
     }
 
     [Theory]
@@ -99,6 +110,8 @@ public sealed class OpenTelemetryConfigurationTests
         Assert.Equal("https://collector.example.com:4317",
             await Assert.IsType<ReferenceExpression>(environment["OTEL_EXPORTER_OTLP_ENDPOINT"]).GetValueAsync(default));
         Assert.Equal("false", environment["OTEL_EXPORTER_OTLP_INSECURE"]);
+        Assert.Null(backend.Resource.Entrypoint);
+        Assert.Empty(await GetArguments(builder, backend.Resource));
         if (useHeaders)
         {
             Assert.Equal("authorization=test-value",
@@ -134,6 +147,8 @@ public sealed class OpenTelemetryConfigurationTests
         Assert.Null(telemetry.Endpoint);
         Assert.Null(telemetry.Headers);
         Assert.DoesNotContain(builder.Resources, resource => resource.Name.StartsWith("otel-exporter-"));
+        Assert.Null(backend.Resource.Entrypoint);
+        Assert.Empty(backend.Resource.Annotations.OfType<CommandLineArgsCallbackAnnotation>());
     }
 
     [Theory]
@@ -157,6 +172,22 @@ public sealed class OpenTelemetryConfigurationTests
 
         Assert.Contains("FeatBit:OpenTelemetry:ExportTarget", error.Message);
         Assert.Contains("ExternalCollector and AzureDashboard", error.Message);
+    }
+
+    private static async Task<List<object>> GetArguments(
+        IDistributedApplicationBuilder builder, ContainerResource resource)
+    {
+        var arguments = new List<object>();
+        var context = new CommandLineArgsCallbackContext(arguments, resource, default)
+        {
+            ExecutionContext = builder.ExecutionContext
+        };
+        foreach (var annotation in resource.Annotations.OfType<CommandLineArgsCallbackAnnotation>())
+        {
+            await annotation.Callback(context);
+        }
+
+        return arguments;
     }
 
     private static async Task<Dictionary<string, object>> GetEnvironment(

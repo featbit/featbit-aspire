@@ -352,7 +352,8 @@ Aspire dashboard, merge this into `appsettings.Production.json`:
 }
 ```
 
-ACA supplies the OTLP endpoint; no collector parameters are needed. Set
+The AppHost resolves ACA's injected OTLP endpoint at startup, overriding the
+image's localhost default; no portal endpoint or collector parameters are needed. Set
 `Enabled=false` to disable application telemetry while keeping console logs.
 Redeploy to apply changes.
 
