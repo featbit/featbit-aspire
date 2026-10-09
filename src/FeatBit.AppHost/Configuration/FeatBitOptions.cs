@@ -16,10 +16,17 @@ public sealed record FeatBitJwtOptions(
     string? PrivateKeyPath,
     string? PublicKeyPath);
 
+public enum FeatBitOpenTelemetryExportTarget
+{
+    ExternalCollector,
+    AzureDashboard
+}
+
 public sealed record FeatBitOpenTelemetryOptions(
     bool Enabled,
     bool UseHeaders,
-    bool Insecure);
+    bool Insecure,
+    FeatBitOpenTelemetryExportTarget ExportTarget = FeatBitOpenTelemetryExportTarget.ExternalCollector);
 
 public sealed record FeatBitAzureScaleOptions(int MinReplicas, int MaxReplicas);
 
@@ -84,16 +91,32 @@ public sealed record FeatBitOptions(
                 LoadService(configuration, "Api")),
             LoadService(configuration, "Els"),
             jwt,
-            new FeatBitOpenTelemetryOptions(
-                configuration.GetValue("FeatBit:OpenTelemetry:Enabled", true),
-                configuration.GetValue("FeatBit:OpenTelemetry:UseHeaders", false),
-                configuration.GetValue("FeatBit:OpenTelemetry:Insecure", false)),
+            LoadOpenTelemetry(configuration),
             azure)
         {
             UseLocalInfrastructure = useLocalInfrastructure,
             UiApiUrl = LoadBrowserUrl(configuration, "FeatBit:Ui:ApiUrl"),
             UiEvaluationUrl = LoadBrowserUrl(configuration, "FeatBit:Ui:EvaluationUrl")
         };
+    }
+
+    private static FeatBitOpenTelemetryOptions LoadOpenTelemetry(IConfiguration configuration)
+    {
+        var configuredTarget = configuration["FeatBit:OpenTelemetry:ExportTarget"] ?? "ExternalCollector";
+        var target = configuredTarget.Trim().ToLowerInvariant() switch
+        {
+            "externalcollector" => FeatBitOpenTelemetryExportTarget.ExternalCollector,
+            "azuredashboard" => FeatBitOpenTelemetryExportTarget.AzureDashboard,
+            _ => throw new InvalidOperationException(
+                $"Unsupported FeatBit:OpenTelemetry:ExportTarget '{configuredTarget}'. " +
+                "Supported values are ExternalCollector and AzureDashboard.")
+        };
+
+        return new FeatBitOpenTelemetryOptions(
+            configuration.GetValue("FeatBit:OpenTelemetry:Enabled", true),
+            configuration.GetValue("FeatBit:OpenTelemetry:UseHeaders", false),
+            configuration.GetValue("FeatBit:OpenTelemetry:Insecure", false),
+            target);
     }
 
     private static string? LoadBrowserUrl(IConfiguration configuration, string configurationKey)

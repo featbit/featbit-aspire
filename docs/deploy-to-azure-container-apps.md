@@ -1,6 +1,6 @@
 # Deploy to Azure Container Apps
 
-The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Container Apps. PostgreSQL, optional Redis, and an optional OpenTelemetry endpoint are external dependencies and must exist before deployment.
+The AppHost deploys the FeatBit UI, API, and Evaluation services to Azure Container Apps using external PostgreSQL and optional Redis. Telemetry can use the ACA Aspire dashboard or an external collector.
 
 Local runs use Docker PostgreSQL and Redis by default. Azure publish/deploy always
 uses external dependencies: PostgreSQL uses the `Parameters:postgres-*` values,
@@ -177,7 +177,7 @@ Both modes require:
 - `FeatBit__Azure__Els__MinReplicas`, `FeatBit__Azure__Els__MaxReplicas`
 - `Parameters__postgres_host`, `Parameters__postgres_port`, `Parameters__postgres_user`, `Parameters__postgres_database`
 - `Parameters__postgres_password`, `Parameters__jwt_key`
-- `FeatBit__OpenTelemetry__Enabled=false`, unless an OTLP endpoint is configured
+- `FeatBit__OpenTelemetry__Enabled=false`, or an [enabled export target](#optional-opentelemetry-export)
 
 Then choose one mode:
 
@@ -336,13 +336,39 @@ The AppHost manages `VERSION`, UI endpoint URLs, backend database/queue/cache co
 
 ## Optional OpenTelemetry export
 
-To export telemetry from Azure Container Apps, update these sections in `appsettings.Production.json`:
+### ACA Aspire dashboard
+
+To enable API and Evaluation structured logs, traces, and metrics in the ACA
+Aspire dashboard, merge this into `appsettings.Production.json`:
 
 ```json
 {
   "FeatBit": {
     "OpenTelemetry": {
       "Enabled": true,
+      "ExportTarget": "AzureDashboard"
+    }
+  }
+}
+```
+
+ACA supplies the OTLP endpoint; no collector parameters are needed. Set
+`Enabled=false` to disable application telemetry while keeping console logs.
+Redeploy to apply changes.
+
+`ExportTarget` applies only in publish mode. Local runs use the local Aspire
+dashboard. UI browser telemetry requires separate frontend instrumentation.
+
+### External collector
+
+For an external OTLP/gRPC collector, use:
+
+```json
+{
+  "FeatBit": {
+    "OpenTelemetry": {
+      "Enabled": true,
+      "ExportTarget": "ExternalCollector",
       "UseHeaders": false,
       "Insecure": false
     }
@@ -355,7 +381,12 @@ To export telemetry from Azure Container Apps, update these sections in `appsett
 
 Keep the existing PostgreSQL parameter entries when editing the `Parameters` section. The endpoint is non-secret and can be stored in the local production settings file.
 
+Omitting `ExportTarget` retains the previous `ExternalCollector` behavior.
+
 In CI/CD, provide it as `Parameters__otel_exporter_otlp_endpoint` instead.
+
+Set `Insecure=true` for an external collector using plaintext gRPC; leave it
+`false` for TLS.
 
 If the collector requires authentication headers, set `FeatBit:OpenTelemetry:UseHeaders` to `true` in `appsettings.Production.json` and provide the header value as a secret:
 

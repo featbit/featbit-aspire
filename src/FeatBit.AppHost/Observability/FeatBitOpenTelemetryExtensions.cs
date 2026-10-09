@@ -13,7 +13,8 @@ public static class FeatBitOpenTelemetryExtensions
         this IDistributedApplicationBuilder builder,
         FeatBitOptions options)
     {
-        if (!options.IsPublishMode || !options.OpenTelemetry.Enabled)
+        if (!options.IsPublishMode || !options.OpenTelemetry.Enabled ||
+            options.OpenTelemetry.ExportTarget == FeatBitOpenTelemetryExportTarget.AzureDashboard)
         {
             return new FeatBitOpenTelemetryResources(null, null);
         }
@@ -53,26 +54,35 @@ public static class FeatBitOpenTelemetryExtensions
             return resource;
         }
 
-        if (options.IsPublishMode)
+        var useAzureDashboard = options.IsPublishMode &&
+            options.OpenTelemetry.ExportTarget == FeatBitOpenTelemetryExportTarget.AzureDashboard;
+
+        if (options.IsPublishMode && !useAzureDashboard)
         {
             resource.WithEnvironment(
                 "OTEL_EXPORTER_OTLP_ENDPOINT",
                 telemetry.Endpoint ?? throw new InvalidOperationException(
-                    "An OTLP endpoint is required when OpenTelemetry is enabled in publish mode."));
+                    "An OTLP endpoint is required when OpenTelemetry exports to ExternalCollector in publish mode."));
         }
-        else
+        else if (!options.IsPublishMode)
         {
             resource.WithOtlpExporter(OtlpProtocol.Grpc);
         }
 
+        // ACA injects its managed agent's OTLP endpoint at runtime. Leaving the
+        // endpoint unset in AzureDashboard mode preserves that platform value.
+        // FeatBit's entrypoint uses it for logs, traces, and metrics exporters.
         resource
             .WithEnvironment("OTEL_SERVICE_NAME", serviceName)
+            .WithEnvironment("OTEL_LOGS_EXPORTER", "otlp")
+            .WithEnvironment("OTEL_TRACES_EXPORTER", "otlp")
+            .WithEnvironment("OTEL_METRICS_EXPORTER", "otlp")
             .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
             .WithEnvironment(
                 "OTEL_EXPORTER_OTLP_INSECURE",
-                options.OpenTelemetry.Insecure ? "true" : "false");
+                useAzureDashboard || options.OpenTelemetry.Insecure ? "true" : "false");
 
-        if (telemetry.Headers is not null)
+        if (!useAzureDashboard && telemetry.Headers is not null)
         {
             resource.WithEnvironment("OTEL_EXPORTER_OTLP_HEADERS", telemetry.Headers);
         }
